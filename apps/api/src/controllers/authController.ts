@@ -20,7 +20,7 @@ import { tokenBlacklist } from "../utils/tokenBlacklist";
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "fallback_secret";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
+// const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
 const COOKIE_MAX_AGE = parseInt(process.env.COOKIE_MAX_AGE || "86400000");
 const NODE_ENV = process.env.NODE_ENV || "development";
 
@@ -60,8 +60,8 @@ export const signup = async (
     };
 
     // Use type assertion to fix type issues with jwt.sign
-    const token = jwt.sign(payload, String(JWT_SECRET), { 
-      expiresIn: JWT_EXPIRES_IN 
+    const token = jwt.sign(payload, String(JWT_SECRET), {
+      expiresIn: "1d",
     });
 
     // Set token in cookie
@@ -127,7 +127,7 @@ export const login = async (
 
     // Use type assertion to fix type issues with jwt.sign
     const token = jwt.sign(payload, String(JWT_SECRET), {
-      expiresIn: JWT_EXPIRES_IN,
+      expiresIn: "1d",
     });
 
     // Set token in cookie
@@ -166,14 +166,15 @@ export const login = async (
 export const logout = (req: Request, res: Response): void => {
   try {
     // Get token from cookie or authorization header
-    const token = 
+    const token =
       req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
 
     if (token) {
       // Get token expiration from JWT
       const decoded = jwt.decode(token) as JwtPayload;
-      const expiryTimestamp = decoded?.exp || Math.floor(Date.now() / 1000) + 3600;
-      
+      const expiryTimestamp =
+        decoded?.exp || Math.floor(Date.now() / 1000) + 3600;
+
       // Add token to blacklist
       tokenBlacklist.addToken(token, expiryTimestamp);
     }
