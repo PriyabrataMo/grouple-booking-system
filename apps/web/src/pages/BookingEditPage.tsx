@@ -7,7 +7,8 @@ import {
   Booking,
 } from "../utils/bookingApi";
 import { BookingStatus } from "../types/booking";
-import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../types/errors";
+import { useAuth } from "../hooks/useAuth";
 
 const BookingEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -61,10 +62,8 @@ const BookingEditPage: React.FC = () => {
         }
 
         setError(null);
-      } catch (err: any) {
-        setError(
-          err.response?.data?.message || "Failed to load booking details"
-        );
+      } catch (err: unknown) {
+        setError(getErrorMessage(err) || "Failed to load booking details");
         console.error("Error fetching booking details:", err);
       } finally {
         setLoading(false);
@@ -119,10 +118,9 @@ const BookingEditPage: React.FC = () => {
 
       await updateBooking(parseInt(id), bookingData);
       navigate(`/bookings/${id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.message ||
-          "Error updating booking. Please try again."
+        getErrorMessage(err) || "Error updating booking. Please try again."
       );
       console.error("Error updating booking:", err);
     } finally {

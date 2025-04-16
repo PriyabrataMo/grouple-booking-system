@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createBooking, BookingCreateInput } from "../utils/bookingApi";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
+import { getErrorMessage } from "../types/errors";
 
 const BookingCreatePage: React.FC = () => {
   const [title, setTitle] = useState<string>("");
@@ -65,12 +66,11 @@ const BookingCreatePage: React.FC = () => {
 
       await createBooking(bookingData);
       navigate("/bookings");
-    } catch (err: any) {
+    } catch (error: unknown) {
       setError(
-        err.response?.data?.message ||
-          "Error creating booking. Please try again."
+        getErrorMessage(error) || "Error creating booking. Please try again."
       );
-      console.error("Error creating booking:", err);
+      console.error("Error creating booking:", error);
     } finally {
       setLoading(false);
     }

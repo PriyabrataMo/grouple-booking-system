@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi } from "../utils/auth";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
+import { getErrorMessage } from "../types/errors";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,10 +26,9 @@ const LoginPage: React.FC = () => {
 
       // Redirect to homepage after successful login
       navigate("/");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.message ||
-          "Login failed. Please check your credentials."
+        getErrorMessage(err) || "Login failed. Please check your credentials."
       );
     } finally {
       setIsLoading(false);

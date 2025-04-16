@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup } from "../utils/auth";
+import { getErrorMessage } from "../types/errors";
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -31,10 +32,8 @@ const SignupPage: React.FC = () => {
       navigate("/login", {
         state: { message: "Account created successfully. Please log in." },
       });
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message || "Signup failed. Please try again."
-      );
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

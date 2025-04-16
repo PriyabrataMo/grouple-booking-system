@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { getBookingById, deleteBooking, Booking } from "../utils/bookingApi";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../hooks/useAuth";
+import { getErrorMessage } from "../types/errors";
 
 const BookingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,10 +26,8 @@ const BookingDetailPage: React.FC = () => {
         const data = await getBookingById(parseInt(id));
         setBooking(data);
         setError(null);
-      } catch (err: any) {
-        setError(
-          err.response?.data?.message || "Failed to load booking details"
-        );
+      } catch (err: unknown) {
+        setError(getErrorMessage(err) || "Failed to load booking details");
         console.error("Error fetching booking details:", err);
       } finally {
         setLoading(false);
@@ -45,8 +44,8 @@ const BookingDetailPage: React.FC = () => {
       try {
         await deleteBooking(parseInt(id));
         navigate("/bookings");
-      } catch (err: any) {
-        setError(err.response?.data?.message || "Failed to delete booking");
+      } catch (err: unknown) {
+        setError(getErrorMessage(err) || "Failed to delete booking");
       }
     }
   };

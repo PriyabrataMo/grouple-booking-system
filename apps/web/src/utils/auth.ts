@@ -97,7 +97,7 @@ export const logout = async (): Promise<void> => {
 // Get current user info
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    const response = await api.get("/auth/me");
+    const response = await api.get<{ user: User }>("/auth/me");
     return response.data.user;
   } catch (error) {
     console.error("Error getting current user:", error);
@@ -122,7 +122,8 @@ export const getUser = (): User | null => {
 // Check if user is logged in
 export const isAuthenticated = (): boolean => {
   // Check for token in cookies first (preferred method)
-  const hasTokenCookie = Cookies.get("token") !== undefined || Cookies.get(TOKEN_KEY) !== undefined;
+  const hasTokenCookie =
+    Cookies.get("token") !== undefined || Cookies.get(TOKEN_KEY) !== undefined;
 
   // Fallback to localStorage
   const hasTokenLocalStorage = localStorage.getItem("token") !== null;
