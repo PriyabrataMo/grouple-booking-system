@@ -25,10 +25,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     updateAuthState();
   };
 
-  // Check auth state on mount
+  // Check auth state on mount and add storage event listener
   useEffect(() => {
     updateAuthState();
-  }, []);
+    
+    // Listen for storage events (when localStorage is changed in another tab or manually)
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "token" || event.key === "user_data" || event.key === null) {
+        updateAuthState();
+      }
+    };
+
+    // Add event listener for storage changes
+    window.addEventListener("storage", handleStorageChange);
+
+    // Setup an interval to periodically check auth state (for same-tab manual deletion)
+    const checkAuthInterval = setInterval(() => {
+      const currentAuthState = isAuthenticated();
+      if (currentAuthState !== isLoggedIn) {
+        updateAuthState();
+      }
+    }, 3000); // Check every 3 seconds
+
+    // Clean up function
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(checkAuthInterval);
+    };
+  }, [isLoggedIn]);
 
   return (
     <AuthContext.Provider
