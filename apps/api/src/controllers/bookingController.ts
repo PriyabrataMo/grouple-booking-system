@@ -1,10 +1,17 @@
 import { Response } from "express";
-import { Booking, User } from "../models";
+import { Booking, User, Restaurant, RestaurantTable } from "../models";
 import { BookingCreateInput, BookingUpdateInput } from "../types/booking.types";
 import {
   AuthenticatedRequest,
   AuthenticatedRequestBody,
 } from "../types/express.types";
+import {
+  ApiError,
+  BadRequestError,
+  NotFoundError,
+  ForbiddenError,
+  InternalServerError,
+} from "../utils/errors";
 
 // Get all bookings (admin) or user's bookings
 export const getBookings = async (
@@ -19,14 +26,50 @@ export const getBookings = async (
 
     const bookings = await Booking.findAll({
       where,
-      include: [{ model: User, attributes: ["id", "username", "email"] }],
+      include: [
+        { model: User, attributes: ["id", "username", "email"] },
+        { model: Restaurant },
+        { model: RestaurantTable },
+      ],
       order: [["startTime", "DESC"]],
     });
 
     res.status(200).json({ bookings });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error getting bookings:", error);
-    res.status(500).json({ message: "Server error while fetching bookings" });
+
+    // Use custom error types based on the specific error
+    if (error.name === "SequelizeConnectionError") {
+      const apiError = new InternalServerError("Database connection error");
+      res.status(apiError.status).json(apiError.toJSON());
+    } else if (error.name === "SequelizeAssociationError") {
+      const apiError = new InternalServerError("Error with model associations");
+      res.status(apiError.status).json(apiError.toJSON());
+    } else if (error.name === "SequelizeValidationError") {
+      // Handle Sequelize validation errors
+      const errors: { [key: string]: string[] } = {};
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err: { path: string; message: string }) => {
+          if (err.path) {
+            if (!errors[err.path]) {
+              errors[err.path] = [];
+            }
+            errors[err.path]?.push(err.message);
+          }
+        });
+      }
+      const apiError = new BadRequestError("Validation error", errors);
+      res.status(apiError.status).json(apiError.toJSON());
+    } else if (error instanceof ApiError) {
+      // If it's already an ApiError, use it directly
+      res.status(error.status).json(error.toJSON());
+    } else {
+      // Default server error
+      const apiError = new InternalServerError(
+        "Server error while fetching bookings"
+      );
+      res.status(apiError.status).json(apiError.toJSON());
+    }
   }
 };
 
@@ -40,32 +83,39 @@ export const getBookingById = async (
     const bookingId = parseInt(req.params.id || "0");
 
     if (isNaN(bookingId)) {
-      res.status(400).json({ message: "Invalid booking ID" });
-      return;
+      throw new BadRequestError("Invalid booking ID");
     }
 
     // Find the booking
     const booking = await Booking.findByPk(bookingId, {
-      include: [{ model: User, attributes: ["id", "username", "email"] }],
+      include: [
+        { model: User, attributes: ["id", "username", "email"] },
+        { model: Restaurant },
+        { model: RestaurantTable },
+      ],
     });
 
     if (!booking) {
-      res.status(404).json({ message: "Booking not found" });
-      return;
+      throw new NotFoundError("Booking");
     }
 
     // Check if the user is authorized to view this booking
     if (role !== "admin" && booking.userId !== userId) {
-      res
-        .status(403)
-        .json({ message: "Not authorized to access this booking" });
-      return;
+      throw new ForbiddenError("Not authorized to access this booking");
     }
 
     res.status(200).json({ booking });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error getting booking:", error);
-    res.status(500).json({ message: "Server error while fetching booking" });
+
+    if (error instanceof ApiError) {
+      res.status(error.status).json(error.toJSON());
+    } else {
+      const apiError = new InternalServerError(
+        "Server error while fetching booking"
+      );
+      res.status(apiError.status).json(apiError.toJSON());
+    }
   }
 };
 
@@ -88,13 +138,11 @@ export const createBooking = async (
     const endTime = new Date(bookingData.endTime);
 
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-      res.status(400).json({ message: "Invalid start or end time" });
-      return;
+      throw new BadRequestError("Invalid start or end time");
     }
 
     if (startTime >= endTime) {
-      res.status(400).json({ message: "End time must be after start time" });
-      return;
+      throw new BadRequestError("End time must be after start time");
     }
 
     // Create the booking
@@ -110,9 +158,32 @@ export const createBooking = async (
       message: "Booking created successfully",
       booking: newBooking,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating booking:", error);
-    res.status(500).json({ message: "Server error while creating booking" });
+
+    if (error instanceof ApiError) {
+      res.status(error.status).json(error.toJSON());
+    } else if (error.name === "SequelizeValidationError") {
+      // Handle Sequelize validation errors
+      const errors: { [key: string]: string[] } = {};
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err: { path: string; message: string }) => {
+          if (err.path) {
+            if (!errors[err.path]) {
+              errors[err.path] = [];
+            }
+            errors[err.path]?.push(err.message);
+          }
+        });
+      }
+      const apiError = new BadRequestError("Validation error", errors);
+      res.status(apiError.status).json(apiError.toJSON());
+    } else {
+      const apiError = new InternalServerError(
+        "Server error while creating booking"
+      );
+      res.status(apiError.status).json(apiError.toJSON());
+    }
   }
 };
 
@@ -127,24 +198,19 @@ export const updateBooking = async (
     const updateData = req.body;
 
     if (isNaN(bookingId) || bookingId <= 0) {
-      res.status(400).json({ message: "Invalid booking ID" });
-      return;
+      throw new BadRequestError("Invalid booking ID");
     }
 
     // Find the booking
     const booking = await Booking.findByPk(bookingId);
 
     if (!booking) {
-      res.status(404).json({ message: "Booking not found" });
-      return;
+      throw new NotFoundError("Booking");
     }
 
     // Check if the user is authorized to update this booking
     if (role !== "admin" && booking.userId !== userId) {
-      res
-        .status(403)
-        .json({ message: "Not authorized to update this booking" });
-      return;
+      throw new ForbiddenError("Not authorized to update this booking");
     }
 
     // Validate booking times if provided
@@ -153,13 +219,11 @@ export const updateBooking = async (
       const endTime = new Date(updateData.endTime);
 
       if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
-        res.status(400).json({ message: "Invalid start or end time" });
-        return;
+        throw new BadRequestError("Invalid start or end time");
       }
 
       if (startTime >= endTime) {
-        res.status(400).json({ message: "End time must be after start time" });
-        return;
+        throw new BadRequestError("End time must be after start time");
       }
 
       updateData.startTime = startTime;
@@ -169,13 +233,11 @@ export const updateBooking = async (
       const endTime = booking.endTime;
 
       if (isNaN(startTime.getTime())) {
-        res.status(400).json({ message: "Invalid start time" });
-        return;
+        throw new BadRequestError("Invalid start time");
       }
 
       if (startTime >= endTime) {
-        res.status(400).json({ message: "End time must be after start time" });
-        return;
+        throw new BadRequestError("End time must be after start time");
       }
 
       updateData.startTime = startTime;
@@ -184,13 +246,11 @@ export const updateBooking = async (
       const endTime = new Date(updateData.endTime);
 
       if (isNaN(endTime.getTime())) {
-        res.status(400).json({ message: "Invalid end time" });
-        return;
+        throw new BadRequestError("Invalid end time");
       }
 
       if (startTime >= endTime) {
-        res.status(400).json({ message: "End time must be after start time" });
-        return;
+        throw new BadRequestError("End time must be after start time");
       }
 
       updateData.endTime = endTime;
@@ -220,13 +280,45 @@ export const updateBooking = async (
 
     await booking.update(sanitizedUpdateData);
 
+    // Fetch the updated booking with all related data
+    const updatedBooking = await Booking.findByPk(bookingId, {
+      include: [
+        { model: User, attributes: ["id", "username", "email"] },
+        { model: Restaurant },
+        { model: RestaurantTable },
+      ],
+    });
+
     res.status(200).json({
       message: "Booking updated successfully",
-      booking,
+      booking: updatedBooking,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating booking:", error);
-    res.status(500).json({ message: "Server error while updating booking" });
+
+    if (error instanceof ApiError) {
+      res.status(error.status).json(error.toJSON());
+    } else if (error.name === "SequelizeValidationError") {
+      // Handle Sequelize validation errors
+      const errors: { [key: string]: string[] } = {};
+      if (error.errors && Array.isArray(error.errors)) {
+        error.errors.forEach((err: { path: string; message: string }) => {
+          if (err.path) {
+            if (!errors[err.path]) {
+              errors[err.path] = [];
+            }
+            errors[err.path]?.push(err.message);
+          }
+        });
+      }
+      const apiError = new BadRequestError("Validation error", errors);
+      res.status(apiError.status).json(apiError.toJSON());
+    } else {
+      const apiError = new InternalServerError(
+        "Server error while updating booking"
+      );
+      res.status(apiError.status).json(apiError.toJSON());
+    }
   }
 };
 
@@ -240,24 +332,19 @@ export const deleteBooking = async (
     const bookingId = parseInt(req.params.id || "0");
 
     if (isNaN(bookingId) || bookingId <= 0) {
-      res.status(400).json({ message: "Invalid booking ID" });
-      return;
+      throw new BadRequestError("Invalid booking ID");
     }
 
     // Find the booking
     const booking = await Booking.findByPk(bookingId);
 
     if (!booking) {
-      res.status(404).json({ message: "Booking not found" });
-      return;
+      throw new NotFoundError("Booking");
     }
 
     // Check if the user is authorized to delete this booking
     if (role !== "admin" && booking.userId !== userId) {
-      res
-        .status(403)
-        .json({ message: "Not authorized to delete this booking" });
-      return;
+      throw new ForbiddenError("Not authorized to delete this booking");
     }
 
     // Delete the booking
@@ -266,8 +353,16 @@ export const deleteBooking = async (
     res.status(200).json({
       message: "Booking deleted successfully",
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting booking:", error);
-    res.status(500).json({ message: "Server error while deleting booking" });
+
+    if (error instanceof ApiError) {
+      res.status(error.status).json(error.toJSON());
+    } else {
+      const apiError = new InternalServerError(
+        "Server error while deleting booking"
+      );
+      res.status(apiError.status).json(apiError.toJSON());
+    }
   }
 };

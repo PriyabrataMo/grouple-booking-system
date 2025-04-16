@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { createBooking, BookingCreateInput } from "../utils/bookingApi";
 import { useAuth } from "../hooks/useAuth";
@@ -11,8 +11,10 @@ const BookingCreatePage: React.FC = () => {
   const [startTime, setStartTime] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
+  const [guestCount, setGuestCount] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -24,22 +26,80 @@ const BookingCreatePage: React.FC = () => {
     }
   }, [isLoggedIn, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  // Validate time whenever date/time fields change
+  const validateTimeSelection = useCallback(() => {
+    // Reset time error
+    setTimeError(null);
 
-    // Validate inputs
-    if (!title) {
-      setError("Title is required");
-      return;
-    }
-
+    // Skip validation if any date/time field is empty
     if (!startDate || !startTime || !endDate || !endTime) {
-      setError("Start and end dates/times are required");
       return;
     }
 
     try {
+      // Format dates for validation
+      const startTimeValue = new Date(`${startDate}T${startTime}`);
+      const endTimeValue = new Date(`${endDate}T${endTime}`);
+
+      if (isNaN(startTimeValue.getTime()) || isNaN(endTimeValue.getTime())) {
+        setTimeError("Invalid date/time format");
+        return;
+      }
+
+      // Compare dates first
+      if (new Date(endDate) < new Date(startDate)) {
+        setTimeError("End date cannot be earlier than start date");
+        return;
+      }
+
+      // If dates are the same, compare times
+      if (endDate === startDate && endTime <= startTime) {
+        setTimeError("End time must be after start time");
+        return;
+      }
+
+      // Final check
+      if (endTimeValue <= startTimeValue) {
+        setTimeError("End time must be after start time");
+      }
+    } catch (err) {
+      setTimeError("Invalid date/time selection");
+      console.error("Time validation error:", err);
+    }
+  }, [startDate, startTime, endDate, endTime]);
+
+  // Run validation whenever time fields change
+  useEffect(() => {
+    validateTimeSelection();
+  }, [startDate, startTime, endDate, endTime, validateTimeSelection]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    try {
+      // Check if there are any time validation errors first
+      if (timeError) {
+        setError(timeError);
+        return;
+      }
+
+      // Validate inputs
+      if (!title) {
+        setError("Title is required");
+        return;
+      }
+
+      if (!startDate || !startTime || !endDate || !endTime) {
+        setError("Start and end dates/times are required");
+        return;
+      }
+
+      if (guestCount < 1) {
+        setError("Guest count must be at least 1");
+        return;
+      }
+
       // Format dates for API
       const startTimeValue = new Date(`${startDate}T${startTime}`);
       const endTimeValue = new Date(`${endDate}T${endTime}`);
@@ -49,7 +109,8 @@ const BookingCreatePage: React.FC = () => {
         return;
       }
 
-      if (startTimeValue >= endTimeValue) {
+      // Final validation check
+      if (endTimeValue <= startTimeValue) {
         setError("End time must be after start time");
         return;
       }
@@ -62,6 +123,7 @@ const BookingCreatePage: React.FC = () => {
         description: description || undefined,
         startTime: startTimeValue.toISOString(),
         endTime: endTimeValue.toISOString(),
+        guestCount,
       };
 
       await createBooking(bookingData);
@@ -119,6 +181,12 @@ const BookingCreatePage: React.FC = () => {
           </div>
         )}
 
+        {timeError && (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 m-6 rounded">
+            {timeError}
+          </div>
+        )}
+
         <div className="p-6">
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -151,6 +219,24 @@ const BookingCreatePage: React.FC = () => {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="guestCount"
+                className="block text-gray-700 font-medium mb-2"
+              >
+                Number of Guests <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                id="guestCount"
+                min="1"
+                value={guestCount}
+                onChange={(e) => setGuestCount(Number(e.target.value))}
+                className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                required
               />
             </div>
 

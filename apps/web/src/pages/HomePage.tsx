@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const HomePage: React.FC = () => {
   const { isLoggedIn, user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -16,21 +17,42 @@ const HomePage: React.FC = () => {
           <div className="mb-6">
             <p className="text-xl">Hello, {user.username}!</p>
             <p className="text-gray-600 mt-2">
-              You're logged in. View your bookings or create a new one.
+              {isAdmin
+                ? "You're logged in as an administrator. Manage restaurants and view all bookings."
+                : "You're logged in. View your bookings or create a new one."}
             </p>
             <div className="mt-4">
-              <Link
-                to="/bookings"
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-4"
-              >
-                View My Bookings
-              </Link>
-              <Link
-                to="/bookings/new"
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-              >
-                Make New Booking
-              </Link>
+              {isAdmin ? (
+                <>
+                  <Link
+                    to="/restaurants"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-4"
+                  >
+                    My Restaurants
+                  </Link>
+                  <Link
+                    to="/admin/bookings"
+                    className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 mr-4"
+                  >
+                    Admin Bookings
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/bookings"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 mr-4"
+                  >
+                    View My Bookings
+                  </Link>
+                  <Link
+                    to="/bookings/new"
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
+                  >
+                    Make New Booking
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         ) : (

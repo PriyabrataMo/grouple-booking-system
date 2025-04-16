@@ -1,15 +1,18 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup } from "../utils/auth";
+import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [role, setRole] = useState("user");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -26,12 +29,13 @@ const SignupPage: React.FC = () => {
 
     try {
       // Call the signup function from auth.ts
-      await signup(username, email, password, fullName);
+      await signup(username, email, password, fullName, role);
 
-      // Redirect to login page after successful signup
-      navigate("/login", {
-        state: { message: "Account created successfully. Please log in." },
-      });
+      // Update the auth context state
+      login();
+
+      // Redirect directly to homepage after successful signup
+      navigate("/");
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Signup failed. Please try again.");
     } finally {
@@ -138,6 +142,25 @@ const SignupPage: React.FC = () => {
               className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
               required
             />
+          </div>
+
+          <div className="mb-4">
+            <label
+              htmlFor="role"
+              className="block text-gray-700 font-medium mb-2"
+            >
+              Role
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              required
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           <button
