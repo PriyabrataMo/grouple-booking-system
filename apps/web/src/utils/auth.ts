@@ -23,7 +23,8 @@ export const signup = async (
   username: string,
   email: string,
   password: string,
-  fullName?: string
+  fullName?: string,
+  role: string = "user"
 ): Promise<User> => {
   try {
     const response = await api.post<AuthResponse>("/auth/signup", {
@@ -31,6 +32,7 @@ export const signup = async (
       email,
       password,
       fullName,
+      role,
     });
 
     // Store token in cookies and localStorage
@@ -52,6 +54,7 @@ export const login = async (email: string, password: string): Promise<User> => {
     const response = await api.post<AuthResponse>("/auth/login", {
       email,
       password,
+      isAdmin: false, // Explicitly mark as regular user login
     });
 
     // Store token in cookies and localStorage
@@ -63,6 +66,36 @@ export const login = async (email: string, password: string): Promise<User> => {
     return response.data.user;
   } catch (error) {
     console.error("Login error:", error);
+    throw error;
+  }
+};
+
+// Admin Login
+export const loginAdmin = async (
+  email: string,
+  password: string
+): Promise<User> => {
+  try {
+    const response = await api.post<AuthResponse>("/auth/login", {
+      email,
+      password,
+      isAdmin: true, // Explicitly mark as admin login
+    });
+
+    // Verify the user has admin role
+    if (response.data.user.role !== "admin") {
+      throw new Error("Not authorized as admin");
+    }
+
+    // Store token in cookies and localStorage
+    Cookies.set(TOKEN_KEY, response.data.token);
+    localStorage.setItem("token", response.data.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(response.data.user));
+
+    // Return user data
+    return response.data.user;
+  } catch (error) {
+    console.error("Admin login error:", error);
     throw error;
   }
 };

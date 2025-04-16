@@ -8,8 +8,35 @@ const BookingsPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch bookings function, memoized to avoid unnecessary re-creations
+  const fetchBookings = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await getBookings();
+      // Only show bookings created by the current user
+      setBookings(data.filter((b) => b.userId === user?.id));
+      setError(null);
+    } catch (err: unknown) {
+      console.error("Error fetching bookings:", err);
+      // Check if the error is an axios error with response data
+      if (typeof err === "object" && err !== null && "response" in err) {
+        const axiosError = err as {
+          response?: { data?: { message?: string } };
+        };
+        // Use the server's error message if available
+        setError(
+          axiosError.response?.data?.message || "Failed to load bookings"
+        );
+      } else {
+        setError(getErrorMessage(err) || "Failed to load bookings");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   // Load bookings on component mount
   useEffect(() => {
@@ -19,21 +46,7 @@ const BookingsPage: React.FC = () => {
     }
 
     fetchBookings();
-  }, [isLoggedIn, navigate]);
-
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      const data = await getBookings();
-      setBookings(data);
-      setError(null);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err) || "Failed to load bookings");
-      console.error("Error fetching bookings:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isLoggedIn, navigate, fetchBookings]);
 
   const handleDeleteBooking = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this booking?")) {
@@ -70,7 +83,7 @@ const BookingsPage: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">My Bookings</h1>
         <Link
-          to="/bookings/new"
+          to="/restaurants"
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
         >
           Create New Booking
@@ -111,6 +124,12 @@ const BookingsPage: React.FC = () => {
                   End Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Restaurant
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Guests
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -134,6 +153,12 @@ const BookingsPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {formatDate(booking.endTime)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {booking.Restaurant?.name || "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {booking.guestCount || 1}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span

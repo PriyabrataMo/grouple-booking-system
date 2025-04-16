@@ -43,13 +43,19 @@ export const signup = async (
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Determine user role
+    let userRole: UserRole = "user";
+    if (role === "admin") {
+      userRole = role;
+    }
+
     // Create new user
     const newUser = await User.create({
       username,
       email,
       password: hashedPassword,
       ...(fullName ? { fullName } : {}),
-      role: (role === "admin" ? "admin" : "user") as UserRole,
+      role: userRole,
     });
 
     // Generate JWT token
@@ -102,7 +108,7 @@ export const login = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, isAdmin } = req.body;
 
     // Find user by email
     const user = await User.findOne({ where: { email } });
@@ -115,6 +121,12 @@ export const login = async (
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+
+    // If admin login is requested, check if user has admin role
+    if (isAdmin && user.role !== "admin") {
+      res.status(403).json({ message: "Not authorized as admin" });
       return;
     }
 

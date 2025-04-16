@@ -121,6 +121,46 @@ const BookingDetailPage: React.FC = () => {
               </div>
             </div>
 
+            {booking.guestCount && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-2">Number of Guests</h2>
+                <p className="text-gray-700">{booking.guestCount}</p>
+              </div>
+            )}
+
+            {booking.Restaurant && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-2">Restaurant</h2>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="font-semibold text-gray-800">
+                    {booking.Restaurant.name}
+                  </p>
+                  <p className="text-gray-700">{booking.Restaurant.address}</p>
+                  {booking.Restaurant.phone && (
+                    <p className="text-gray-600">{booking.Restaurant.phone}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {booking.RestaurantTable && (
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold mb-2">
+                  Table Information
+                </h2>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-gray-700">
+                    <span className="font-medium">Table Number:</span>{" "}
+                    {booking.RestaurantTable.tableNumber}
+                  </p>
+                  <p className="text-gray-700">
+                    <span className="font-medium">Capacity:</span>{" "}
+                    {booking.RestaurantTable.capacity} people
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="mb-6">
               <h2 className="text-lg font-semibold mb-2">Created</h2>
               <p className="text-gray-700">{formatDate(booking.createdAt)}</p>

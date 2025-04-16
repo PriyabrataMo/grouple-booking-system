@@ -5,6 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
+import restaurantRoutes from "./routes/restaurantRoutes";
 
 // Load environment variables
 dotenv.config();
@@ -31,13 +32,14 @@ app.use(
 );
 
 // Routes
-app.get("/", (req, res) => {
+app.get("/", (_, res) => {
   res.send("Hello, world!");
 });
 
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
+app.use("/api/restaurants", restaurantRoutes);
 
 // Initialize database and start server
 const startServer = async () => {
