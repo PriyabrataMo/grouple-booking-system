@@ -9,7 +9,13 @@
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/qs": "^6.9.18",
     "prettier": "^3.5.3",
+    "sequelize-auto": "^0.8.8",
     "turbo": "^2.5.0",
     "typescript": "5.8.2"
   },
