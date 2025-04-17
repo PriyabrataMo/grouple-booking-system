@@ -158,7 +158,10 @@ const RestaurantFormPage: React.FC = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-6">
-        <Link to="/restaurants" className="text-blue-600 hover:text-blue-800">
+        <Link
+          to={`/restaurants/${restaurantId}`}
+          className="text-blue-600 hover:text-blue-800"
+        >
           &larr; Back to Restaurants
         </Link>
       </div>

@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Link,
-  useNavigate,
-  useLocation,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   getRestaurants,
   Restaurant,
@@ -14,34 +9,41 @@ import {
 } from "../utils/restaurantApi";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
+import { Loader } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 const RestaurantsPage: React.FC = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Modal state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [restaurantToDelete, setRestaurantToDelete] =
+    useState<Restaurant | null>(null);
+
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Pagination and sorting state
-  const [currentPage, setCurrentPage] = useState<number>(
-    parseInt(searchParams.get("page") || "1", 10)
-  );
-  const [sortBy, setSortBy] = useState<string>(
-    searchParams.get("sortBy") || "name"
-  );
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
-    (searchParams.get("sortOrder") || "asc") as "asc" | "desc"
-  );
-
-  // Dynamically calculate items per page based on total count
-  const [itemsPerPage, setItemsPerPage] = useState<number>(4); // Default to 4
+  // Fixed items per page
+  const itemsPerPage = 4;
 
   // Load restaurants on component mount
   useEffect(() => {
@@ -64,68 +66,25 @@ const RestaurantsPage: React.FC = () => {
     fetchRestaurants();
   }, [isLoggedIn, navigate, location, currentPage, sortBy, sortOrder]);
 
-  // Update URL when pagination or sorting changes
-  useEffect(() => {
-    const params: { [key: string]: string } = {
-      page: currentPage.toString(),
-      sortBy,
-      sortOrder,
-    };
-    setSearchParams(params);
-  }, [currentPage, sortBy, sortOrder, setSearchParams]);
-
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
 
-      // Set a fixed number of items per page (4)
-      const fixedItemsPerPage = 4;
-      setItemsPerPage(fixedItemsPerPage);
-
-      // Get restaurants with pagination
+      // Prepare params for API call
       const params: RestaurantParams = {
         page: currentPage,
-        limit: fixedItemsPerPage,
+        limit: itemsPerPage,
         sortBy,
         sortOrder,
       };
 
+      // Get restaurants with pagination and sorting from the backend
       const data: RestaurantPaginatedResponse = await getRestaurants(params);
-      const totalItems = data.totalCount;
 
-      // Calculate total pages based on the fixed items per page
-      const calculatedTotalPages = Math.ceil(totalItems / fixedItemsPerPage);
-
-      // Reset to page 1 if current page is now invalid
-      if (currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
-        setCurrentPage(1);
-
-        // Update URL immediately to prevent loading invalid page
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set("page", "1");
-        setSearchParams(newParams);
-
-        // Don't continue with the current fetch, it will be triggered again by state change
-        setLoading(false);
-        return;
-      }
-
-      // If user is a regular user, show all restaurants
-      // Otherwise (for admins), filter to only show their own restaurants
-      let filteredRestaurants;
-      if (user?.role === "user") {
-        filteredRestaurants = data.restaurants; // Show all restaurants for regular users
-      } else {
-        // For admin users - show only their own restaurants
-        filteredRestaurants = data.restaurants.filter(
-          (restaurant) => restaurant.userId === user?.id
-        );
-      }
-
-      setRestaurants(filteredRestaurants);
-      setTotalCount(totalItems);
-      setTotalPages(calculatedTotalPages);
-
+      // Store restaurants from the backend response
+      setRestaurants(data.restaurants);
+      setTotalCount(data.totalCount);
+      setTotalPages(data.totalPages);
       setError(null);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Failed to load restaurants");
@@ -135,44 +94,58 @@ const RestaurantsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteRestaurant = async (id: number) => {
-    // Prevent multiple rapid clicks
-    if (deleteLoading) return;
+  const openDeleteDialog = (restaurant: Restaurant) => {
+    setRestaurantToDelete(restaurant);
+    setIsDeleteDialogOpen(true);
+  };
 
-    const confirmMessage =
-      "Are you sure you want to delete this restaurant? This will also delete all associated tables and bookings. This action cannot be undone.";
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    // Clear the restaurant to delete with a slight delay to avoid UI flicker
+    setTimeout(() => {
+      setRestaurantToDelete(null);
+    }, 200);
+  };
 
-    if (window.confirm(confirmMessage)) {
-      try {
-        setDeleteLoading(true);
-        setDeleteId(id);
+  const handleDeleteRestaurant = async () => {
+    // Ensure we have a restaurant to delete
+    if (!restaurantToDelete) return;
 
-        // Call the API to delete the restaurant
-        await deleteRestaurant(id);
+    try {
+      setDeleteLoading(true);
 
-        // Remove the deleted restaurant from state
-        setRestaurants((prevRestaurants) =>
-          prevRestaurants.filter((restaurant) => restaurant.id !== id)
-        );
+      // Call the API to delete the restaurant
+      await deleteRestaurant(restaurantToDelete.id);
 
-        // Show success message
-        setSuccessMessage("Restaurant deleted successfully");
+      // Remove the deleted restaurant from state
+      setRestaurants((prevRestaurants) =>
+        prevRestaurants.filter(
+          (restaurant) => restaurant.id !== restaurantToDelete.id
+        )
+      );
 
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccessMessage(null);
-        }, 3000);
-      } catch (err: unknown) {
-        const errorMessage = getErrorMessage(err);
-        setError(
-          errorMessage ||
-            "Failed to delete restaurant. It might have related bookings or tables."
-        );
-        console.error("Error deleting restaurant:", err);
-      } finally {
-        setDeleteLoading(false);
-        setDeleteId(null);
-      }
+      // Show success message
+      setSuccessMessage("Restaurant deleted successfully");
+
+      // Close the dialog
+      closeDeleteDialog();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err);
+      setError(
+        errorMessage ||
+          "Failed to delete restaurant. It might have related bookings or tables."
+      );
+      console.error("Error deleting restaurant:", err);
+
+      // Close the dialog even on error
+      closeDeleteDialog();
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -187,6 +160,10 @@ const RestaurantsPage: React.FC = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   // Sorting handlers
@@ -215,6 +192,42 @@ const RestaurantsPage: React.FC = () => {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      {/* Delete confirmation dialog using shadcn Alert Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent className="bg-white max-w-md mx-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 fixed">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Restaurant</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{restaurantToDelete?.name}"? This
+              will also delete all associated tables and bookings. This action
+              cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRestaurant}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteLoading ? (
+                <div className="flex items-center">
+                  <Loader className="animate-spin h-4 w-4 mr-2" />
+                  Deleting...
+                </div>
+              ) : (
+                "Delete Restaurant"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex flex-col md:flex-row justify-between items-center mb-6">
         <h1 className="text-2xl font-bold mb-4 md:mb-0">
           {user?.role === "user" ? "All Restaurants" : "My Restaurants"}
@@ -423,9 +436,8 @@ const RestaurantsPage: React.FC = () => {
                         Edit
                       </Link>
                       <button
-                        onClick={() => handleDeleteRestaurant(restaurant.id)}
-                        className={`bg-red-600 text-white px-4 py-2 rounded-md inline-flex items-center ${deleteLoading && deleteId === restaurant.id ? "opacity-50 cursor-not-allowed" : "hover:bg-red-700"}`}
-                        disabled={deleteLoading}
+                        onClick={() => openDeleteDialog(restaurant)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-md inline-flex items-center hover:bg-red-700"
                       >
                         <svg
                           className="w-4 h-4 mr-1"
@@ -441,9 +453,7 @@ const RestaurantsPage: React.FC = () => {
                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                           ></path>
                         </svg>
-                        {deleteLoading && deleteId === restaurant.id
-                          ? "Deleting..."
-                          : "Delete"}
+                        Delete
                       </button>
                     </>
                   )}
@@ -497,7 +507,7 @@ const RestaurantsPage: React.FC = () => {
                 return (
                   <button
                     key={pageToShow}
-                    onClick={() => setCurrentPage(pageToShow)}
+                    onClick={() => handlePageChange(pageToShow)}
                     className={`px-4 py-2 rounded-md ${
                       currentPage === pageToShow
                         ? "bg-blue-700 text-white"

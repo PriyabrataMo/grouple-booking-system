@@ -19,6 +19,7 @@ class Booking extends Model<BookingAttributes> implements BookingAttributes {
   public guestCount!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+  public Restaurant?: Restaurant;
 }
 
 // Initialize the model with attributes and options

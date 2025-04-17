@@ -3,6 +3,7 @@ import User from "./User";
 import Booking from "./Booking";
 import Restaurant from "./Restaurant";
 import RestaurantTable from "./RestaurantTable";
+import ChatMessage from "./ChatMessage";
 
 // Setup associations
 // User associations
@@ -39,6 +40,15 @@ Booking.belongsTo(Restaurant, {
   foreignKey: "restaurantId",
 });
 
+// Chat message associations
+Restaurant.hasMany(ChatMessage, {
+  foreignKey: "restaurantId",
+  onDelete: "CASCADE",
+});
+ChatMessage.belongsTo(Restaurant, {
+  foreignKey: "restaurantId",
+});
+
 // RestaurantTable associations
 RestaurantTable.hasMany(Booking, {
   foreignKey: "tableId",
@@ -67,4 +77,4 @@ export const initDatabase = async (): Promise<void> => {
 };
 
 // Export models
-export { sequelize, User, Booking, Restaurant, RestaurantTable };
+export { sequelize, User, Booking, Restaurant, RestaurantTable, ChatMessage };

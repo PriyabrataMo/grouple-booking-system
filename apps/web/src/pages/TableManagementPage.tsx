@@ -211,10 +211,10 @@ const TableManagementPage: React.FC = () => {
       <div className="mb-6">
         {restaurant && (
           <Link
-            to={isAdmin ? `/staff/dashboard` : `/restaurants/${restaurantId}`}
+            to={`/restaurants/${restaurantId}`}
             className="text-blue-600 hover:text-blue-800"
           >
-            &larr; Back to {isAdmin ? "Dashboard" : restaurant.name}
+            &larr; Back to {restaurant.name}
           </Link>
         )}
       </div>
