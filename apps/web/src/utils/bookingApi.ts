@@ -23,7 +23,6 @@ export class BookingApiError extends Error {
   }
 }
 
-// Restaurant interface for associated data
 export interface Restaurant {
   id: number;
   name: string;
@@ -31,6 +30,7 @@ export interface Restaurant {
   phone?: string;
   email?: string;
   description?: string;
+  userId: number;
 }
 
 // RestaurantTable interface for associated data

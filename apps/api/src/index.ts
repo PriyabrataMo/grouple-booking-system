@@ -3,15 +3,20 @@ import { initDatabase } from "./models/index";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
+import http from "http";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import restaurantRoutes from "./routes/restaurantRoutes";
+import chatService from "./services/chatService";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Create HTTP server
+const server = http.createServer(app);
 
 // Middleware
 app.use(express.json());
@@ -47,9 +52,13 @@ const startServer = async () => {
     // Initialize database
     await initDatabase();
 
-    // Start server
-    app.listen(PORT, () => {
+    // Initialize chat service (now async)
+    await chatService.initialize(server);
+
+    // Start server (use the HTTP server instead of Express app)
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`WebSocket server is also running`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

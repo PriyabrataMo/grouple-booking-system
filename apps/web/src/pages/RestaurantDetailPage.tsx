@@ -62,13 +62,16 @@ const RestaurantDetailPage: React.FC = () => {
       <div className="mb-6">
         {isOwner ? (
           <Link
-            to="/staff/dashboard"
+            to={`/restaurants`}
             className="text-blue-600 hover:text-blue-800"
           >
             &larr; Back to Dashboard
           </Link>
         ) : (
-          <Link to="/restaurants" className="text-blue-600 hover:text-blue-800">
+          <Link
+            to={`/restaurants`}
+            className="text-blue-600 hover:text-blue-800"
+          >
             &larr; Back to Restaurants
           </Link>
         )}
@@ -209,7 +212,7 @@ const RestaurantDetailPage: React.FC = () => {
                   </Link>
                   {isOwner && (
                     <Link
-                      to={`/staff/restaurants/${restaurant.id}/bookings`}
+                      to={`/admin/bookings`}
                       className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
                     >
                       Manage Bookings

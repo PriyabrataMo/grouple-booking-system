@@ -14,6 +14,9 @@ import RestaurantFormPage from "./pages/RestaurantFormPage";
 import RestaurantBookingPage from "./pages/RestaurantBookingPage";
 import TableManagementPage from "./pages/TableManagementPage";
 import AdminBookingsPage from "./pages/AdminBookingsPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import AdminChatPage from "./pages/AdminChatPage";
+import UserChatPage from "./pages/UserChatPage";
 import "./index.css";
 
 function App() {
@@ -33,6 +36,10 @@ function App() {
               <Route path="/bookings/new" element={<BookingCreatePage />} />
               <Route path="/bookings/:id" element={<BookingDetailPage />} />
               <Route path="/bookings/:id/edit" element={<BookingEditPage />} />
+              <Route
+                path="/bookings/:bookingId/chat"
+                element={<UserChatPage />}
+              />
 
               {/* Restaurant Routes */}
               <Route path="/restaurants" element={<RestaurantsPage />} />
@@ -56,6 +63,11 @@ function App() {
 
               {/* Admin Routes */}
               <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+              <Route
+                path="/admin/restaurants/:restaurantId/chat"
+                element={<AdminChatPage />}
+              />
             </Routes>
           </main>
         </div>

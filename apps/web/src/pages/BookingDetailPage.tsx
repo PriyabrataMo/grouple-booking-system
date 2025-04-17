@@ -3,13 +3,29 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { getBookingById, deleteBooking, Booking } from "../utils/bookingApi";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
+import { Loader, MessageSquare } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import ChatBox from "../components/ChatBox";
 
 const BookingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { isLoggedIn } = useAuth();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,16 +53,27 @@ const BookingDetailPage: React.FC = () => {
     fetchBookingData();
   }, [id, isLoggedIn, navigate]);
 
+  const openDeleteDialog = () => {
+    if (!booking) return;
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+  };
+
   const handleDelete = async () => {
     if (!booking || !id) return;
 
-    if (window.confirm("Are you sure you want to delete this booking?")) {
-      try {
-        await deleteBooking(parseInt(id));
-        navigate("/bookings");
-      } catch (err: unknown) {
-        setError(getErrorMessage(err) || "Failed to delete booking");
-      }
+    try {
+      setDeleteLoading(true);
+      await deleteBooking(parseInt(id));
+      navigate("/bookings");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Failed to delete booking");
+      closeDeleteDialog();
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -72,7 +99,10 @@ const BookingDetailPage: React.FC = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-6">
-        <Link to="/bookings" className="text-blue-600 hover:text-blue-800">
+        <Link
+          to={user?.role === "admin" ? "/admin/bookings" : "/bookings"}
+          className="text-blue-600 hover:text-blue-800"
+        >
           &larr; Back to Bookings
         </Link>
       </div>
@@ -177,6 +207,15 @@ const BookingDetailPage: React.FC = () => {
           </div>
 
           <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-4">
+            <button
+              onClick={() => setIsChatOpen(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center"
+            >
+              <MessageSquare className="mr-2" size={18} />
+              {user?.role === "admin"
+                ? "Chat with Guest"
+                : "Chat with Restaurant"}
+            </button>
             <Link
               to={`/bookings/${booking.id}/edit`}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
@@ -184,7 +223,7 @@ const BookingDetailPage: React.FC = () => {
               Edit
             </Link>
             <button
-              onClick={handleDelete}
+              onClick={openDeleteDialog}
               className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
             >
               Delete
@@ -195,6 +234,54 @@ const BookingDetailPage: React.FC = () => {
         <div className="bg-gray-50 p-8 text-center rounded-lg">
           <p className="text-xl text-gray-600">Booking not found.</p>
         </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent className="bg-white max-w-md mx-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 fixed">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this booking
+              {booking?.title ? ` "${booking.title}"` : ""}? This action cannot
+              be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteLoading ? (
+                <div className="flex items-center">
+                  <Loader className="animate-spin h-4 w-4 mr-2" />
+                  Deleting...
+                </div>
+              ) : (
+                "Delete Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Chat component */}
+      {isChatOpen && booking && user && (
+        <ChatBox
+          bookingId={booking.id.toString()}
+          userId={user.id.toString()}
+          username={user.fullName || user.username || user.email}
+          role={user.role as "admin" | "user"}
+          restaurantUserId={booking.Restaurant?.userId.toString() || ""}
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
     </div>
   );

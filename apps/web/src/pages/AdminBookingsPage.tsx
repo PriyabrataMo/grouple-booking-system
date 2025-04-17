@@ -1,10 +1,27 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getBookings, updateBooking, Booking } from "../utils/bookingApi";
+import {
+  getBookings,
+  updateBooking,
+  deleteBooking,
+  Booking,
+} from "../utils/bookingApi";
 import { getRestaurants, Restaurant } from "../utils/restaurantApi";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
 import { BookingStatus } from "../types/booking";
+import { Loader } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import ChatBox from "../components/ChatBox";
 
 const AdminBookingsPage: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -19,6 +36,13 @@ const AdminBookingsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
+  const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null
+  );
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
 
@@ -110,6 +134,62 @@ const AdminBookingsPage: React.FC = () => {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: unknown) {
       setError(getErrorMessage(err) || "Failed to update status");
+    }
+  };
+
+  const openDeleteDialog = (booking: Booking) => {
+    setBookingToDelete(booking);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    // Clear the booking to delete with a slight delay to avoid UI flicker
+    setTimeout(() => {
+      setBookingToDelete(null);
+    }, 200);
+  };
+
+  const handleDeleteBooking = async () => {
+    // Ensure we have a booking to delete
+    if (!bookingToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+
+      // Call the API to delete the booking
+      await deleteBooking(bookingToDelete.id);
+
+      // Remove the deleted booking from state
+      const updatedBookings = bookings.filter(
+        (booking) => booking.id !== bookingToDelete.id
+      );
+      setBookings(updatedBookings);
+
+      // Update filtered bookings too
+      setFilteredBookings(
+        filteredBookings.filter((booking) => booking.id !== bookingToDelete.id)
+      );
+
+      // Show success message
+      setSuccessMessage("Booking deleted successfully");
+
+      // Close the dialog
+      closeDeleteDialog();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage || "Failed to delete booking. Please try again.");
+      console.error("Error deleting booking:", err);
+
+      // Close the dialog even on error
+      closeDeleteDialog();
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -326,6 +406,21 @@ const AdminBookingsPage: React.FC = () => {
                           Cancel
                         </button>
                       )}
+                      <button
+                        onClick={() => openDeleteDialog(booking)}
+                        className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedBookingId(booking.id.toString());
+                          setIsChatOpen(true);
+                        }}
+                        className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 ml-1"
+                      >
+                        Chat
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -348,6 +443,57 @@ const AdminBookingsPage: React.FC = () => {
           <p>Total bookings: {bookings.length}</p>
           <p>Filtered bookings: {filteredBookings.length}</p>
         </div>
+      )}
+
+      {/* Delete confirmation dialog using shadcn Alert Dialog */}
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent className="bg-white max-w-md mx-auto top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 fixed">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the booking "
+              {bookingToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteBooking}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteLoading ? (
+                <div className="flex items-center">
+                  <Loader className="animate-spin h-4 w-4 mr-2" />
+                  Deleting...
+                </div>
+              ) : (
+                "Delete Booking"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Chat component */}
+      {isChatOpen && selectedBookingId && user && (
+        <ChatBox
+          bookingId={selectedBookingId}
+          userId={user.id.toString()}
+          username={user.fullName || user.username || user.email}
+          role={user.role as "admin" | "user"}
+          restaurantUserId={
+            bookings
+              .find((b) => b.id.toString() === selectedBookingId)
+              ?.Restaurant?.userId.toString() || ""
+          }
+          onClose={() => setIsChatOpen(false)}
+        />
       )}
     </div>
   );
