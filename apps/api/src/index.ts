@@ -14,6 +14,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const URL = process.env.URL || "http://localhost:5173";
 // Create HTTP server
 const server = http.createServer(app);
 
@@ -25,7 +26,7 @@ app.use(cookieParser()); // Add cookie parser
 // CORS configuration
 app.use(
   cors({
-    origin: "*",
+    origin: URL, // Allow requests from this origin
     credentials: true, // Allow cookies with CORS
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
