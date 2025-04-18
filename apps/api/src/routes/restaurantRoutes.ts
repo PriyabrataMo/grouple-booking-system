@@ -11,6 +11,7 @@ import {
   deleteTable,
 } from "../controllers/restaurantController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import { upload } from "../middleware/uploadMiddleware";
 
 const router = express.Router();
 
@@ -20,8 +21,16 @@ router.use(authenticateToken);
 // Restaurant routes
 router.get("/", getRestaurants as unknown as express.RequestHandler);
 router.get("/:id", getRestaurantById as unknown as express.RequestHandler);
-router.post("/", createRestaurant as unknown as express.RequestHandler);
-router.put("/:id", updateRestaurant as unknown as express.RequestHandler);
+router.post(
+  "/",
+  upload.single("image"),
+  createRestaurant as unknown as express.RequestHandler
+);
+router.put(
+  "/:id",
+  upload.single("image"),
+  updateRestaurant as unknown as express.RequestHandler
+);
 router.delete("/:id", deleteRestaurant as unknown as express.RequestHandler);
 
 // Table routes

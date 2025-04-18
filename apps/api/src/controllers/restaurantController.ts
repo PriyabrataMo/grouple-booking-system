@@ -10,6 +10,7 @@ import {
   AuthenticatedRequest,
   AuthenticatedRequestBody,
 } from "../types/express.types";
+import { uploadFileToS3, deleteFileFromS3 } from "../utils/s3";
 
 // Get all restaurants with pagination and sorting
 export const getRestaurants = async (
@@ -127,6 +128,22 @@ export const createRestaurant = async (
 
     const restaurantData = req.body;
 
+    // Handle image upload if a file is included
+    if (req.file) {
+      try {
+        const imageUrl = await uploadFileToS3(req.file);
+        restaurantData.imageUrl = imageUrl;
+      } catch (uploadError) {
+        console.error("S3 upload error:", uploadError);
+        // Continue without the image if upload fails
+        res.status(207).json({
+          message: "Restaurant created, but image upload failed",
+          error: (uploadError as Error).message,
+        });
+        // Don't return here, continue with restaurant creation
+      }
+    }
+
     // Create the restaurant
     const newRestaurant = await Restaurant.create({
       ...restaurantData,
@@ -174,6 +191,22 @@ export const updateRestaurant = async (
       return;
     }
 
+    // Handle image upload if a file is included
+    if (req.file) {
+      try {
+        const imageUrl = await uploadFileToS3(req.file);
+        updateData.imageUrl = imageUrl;
+      } catch (uploadError) {
+        console.error("S3 upload error:", uploadError);
+        // Continue without updating the image if upload fails
+        res.status(207).json({
+          message: "Restaurant updated, but image upload failed",
+          error: (uploadError as Error).message,
+        });
+        // Don't return here, continue with restaurant update
+      }
+    }
+
     // Update the restaurant
     await restaurant.update(updateData);
 
@@ -215,6 +248,26 @@ export const deleteRestaurant = async (
         .status(403)
         .json({ message: "Not authorized to delete this restaurant" });
       return;
+    }
+
+    // Delete associated image from S3 if it exists
+    if (restaurant.imageUrl) {
+      try {
+        const deleteResult = await deleteFileFromS3(restaurant.imageUrl);
+        if (deleteResult) {
+          console.log(
+            `Successfully deleted image for restaurant ${restaurantId}`
+          );
+        } else {
+          console.warn(`Failed to delete image for restaurant ${restaurantId}`);
+        }
+      } catch (imageError) {
+        console.error(
+          `Error deleting image for restaurant ${restaurantId}:`,
+          imageError
+        );
+        // Continue with restaurant deletion even if image deletion fails
+      }
     }
 
     // Delete the restaurant

@@ -136,10 +136,17 @@ export const getRestaurantById = async (id: number): Promise<Restaurant> => {
 
 // Create a new restaurant
 export const createRestaurant = async (
-  restaurantData: RestaurantCreateInput
+  restaurantData: RestaurantCreateInput | FormData,
+  isFormData: boolean = false
 ): Promise<Restaurant> => {
   try {
-    const response = await api.post("/restaurants", restaurantData);
+    const headers = isFormData
+      ? { "Content-Type": "multipart/form-data" }
+      : { "Content-Type": "application/json" };
+
+    const response = await api.post("/restaurants", restaurantData, {
+      headers,
+    });
     return response.data.restaurant;
   } catch (error) {
     console.error("Error creating restaurant:", error);
@@ -150,10 +157,17 @@ export const createRestaurant = async (
 // Update a restaurant
 export const updateRestaurant = async (
   id: number,
-  restaurantData: RestaurantUpdateInput
+  restaurantData: RestaurantUpdateInput | FormData,
+  isFormData: boolean = false
 ): Promise<Restaurant> => {
   try {
-    const response = await api.put(`/restaurants/${id}`, restaurantData);
+    const headers = isFormData
+      ? { "Content-Type": "multipart/form-data" }
+      : { "Content-Type": "application/json" };
+
+    const response = await api.put(`/restaurants/${id}`, restaurantData, {
+      headers,
+    });
     return response.data.restaurant;
   } catch (error) {
     console.error(`Error updating restaurant ${id}:`, error);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -18,9 +18,12 @@ const RestaurantFormPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(isEditing);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = user?.role === "admin";
 
@@ -73,6 +76,11 @@ const RestaurantFormPage: React.FC = () => {
             imageUrl: data.imageUrl || "",
           });
 
+          // If there's an existing image URL, set it as the preview
+          if (data.imageUrl) {
+            setImagePreview(data.imageUrl);
+          }
+
           setError(null);
         } catch (err) {
           setError(getErrorMessage(err) || "Failed to load restaurant");
@@ -98,6 +106,46 @@ const RestaurantFormPage: React.FC = () => {
     });
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      // Check file type
+      if (!file.type.match("image.*")) {
+        setError("Please select an image file");
+        return;
+      }
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image size should be less than 5MB");
+        return;
+      }
+
+      setImageFile(file);
+      setError(null);
+
+      // Create a preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+    setFormData({
+      ...formData,
+      imageUrl: "",
+    });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -105,12 +153,28 @@ const RestaurantFormPage: React.FC = () => {
       setSubmitting(true);
       setError(null);
 
+      // Create FormData object for multipart/form-data submission
+      const formPayload = new FormData();
+
+      // Add all form fields
+      Object.entries(formData).forEach(([key, value]) => {
+        // Only add non-empty values and skip imageUrl since we're handling it separately
+        if (value && key !== "imageUrl") {
+          formPayload.append(key, value as string);
+        }
+      });
+
+      // Add image file if selected
+      if (imageFile) {
+        formPayload.append("image", imageFile);
+      }
+
       if (isEditing && restaurantId) {
         // Update existing restaurant
-        await updateRestaurant(restaurantId, formData);
+        await updateRestaurant(restaurantId, formPayload, true); // true indicates FormData
       } else {
         // Create new restaurant
-        await createRestaurant(formData);
+        await createRestaurant(formPayload, true); // true indicates FormData
       }
 
       // Redirect to restaurants page
@@ -159,10 +223,10 @@ const RestaurantFormPage: React.FC = () => {
     <div className="container mx-auto py-8 px-4">
       <div className="mb-6">
         <Link
-          to={`/restaurants/${restaurantId}`}
+          to={isEditing ? `/restaurants/${restaurantId}` : "/restaurants"}
           className="text-blue-600 hover:text-blue-800"
         >
-          &larr; Back to Restaurants
+          &larr; Back to {isEditing ? "Restaurant Details" : "Restaurants"}
         </Link>
       </div>
 
@@ -185,7 +249,7 @@ const RestaurantFormPage: React.FC = () => {
           </div>
         ) : (
           <div className="p-6">
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} encType="multipart/form-data">
               <div className="mb-6">
                 <label
                   htmlFor="name"
@@ -303,23 +367,63 @@ const RestaurantFormPage: React.FC = () => {
 
               <div className="mb-6">
                 <label
-                  htmlFor="imageUrl"
+                  htmlFor="image"
                   className="block text-gray-700 font-semibold mb-2"
                 >
-                  Image URL
+                  Restaurant Image
                 </label>
-                <input
-                  type="url"
-                  id="imageUrl"
-                  name="imageUrl"
-                  value={formData.imageUrl}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://example.com/image.jpg"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter a URL for the restaurant image (optional)
-                </p>
+                <div className="space-y-4">
+                  {imagePreview && (
+                    <div className="relative w-full h-48 overflow-hidden rounded-lg">
+                      <img
+                        src={imagePreview}
+                        alt="Restaurant preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full shadow hover:bg-red-700"
+                        title="Remove image"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center">
+                    <input
+                      type="file"
+                      id="image"
+                      name="image"
+                      ref={fileInputRef}
+                      onChange={handleImageChange}
+                      accept="image/*"
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Choose an image for your restaurant (optional). Maximum
+                    size: 5MB
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end">
