@@ -10,7 +10,61 @@ import {
   AuthenticatedRequest,
   AuthenticatedRequestBody,
 } from "../types/express.types";
-import { uploadFileToS3, deleteFileFromS3 } from "../utils/s3";
+import {
+  uploadFileToS3,
+  deleteFileFromS3,
+  generatePresignedUploadUrl,
+  generatePresignedGetUrl,
+} from "../utils/s3";
+
+/**
+ * Helper function to process restaurant data and convert image URLs to presigned URLs
+ * @param restaurant Restaurant data to process
+ * @returns Processed restaurant data with presigned image URLs
+ */
+const processRestaurantImages = async (restaurant: any) => {
+  if (!restaurant) return null;
+  
+  // Convert to plain object if it's a Sequelize model instance
+  const data = restaurant.toJSON ? restaurant.toJSON() : { ...restaurant };
+  
+  // Process main restaurant image if it exists
+  if (data.imageUrl) {
+    try {
+      data.imageUrl = await generatePresignedGetUrl(data.imageUrl);
+    } catch (error) {
+      console.error("Error generating presigned URL for restaurant image:", error);
+      // Keep original URL if generation fails
+    }
+  }
+  
+  // Process menu images array if it exists
+  if (data.menuImages && Array.isArray(data.menuImages)) {
+    try {
+      data.menuImages = await Promise.all(
+        data.menuImages.map((url: string) => 
+          url ? generatePresignedGetUrl(url) : url
+        )
+      );
+    } catch (error) {
+      console.error("Error generating presigned URLs for menu images:", error);
+      // Keep original URLs if generation fails
+    }
+  }
+  
+  return data;
+};
+
+/**
+ * Process an array of restaurants to convert their image URLs to presigned URLs
+ * @param restaurants Array of restaurant data to process
+ * @returns Processed array with presigned image URLs
+ */
+const processMultipleRestaurants = async (restaurants: any[]) => {
+  if (!restaurants || !Array.isArray(restaurants)) return [];
+  
+  return Promise.all(restaurants.map(restaurant => processRestaurantImages(restaurant)));
+};
 
 // Get all restaurants with pagination and sorting
 export const getRestaurants = async (
@@ -62,11 +116,14 @@ export const getRestaurants = async (
       offset,
     });
 
+    // Process restaurants to convert image URLs to presigned URLs
+    const processedRestaurants = await processMultipleRestaurants(restaurants);
+
     // Calculate total pages
     const totalPages = Math.ceil(count / limit);
 
     res.status(200).json({
-      restaurants,
+      restaurants: processedRestaurants,
       totalCount: count,
       totalPages,
       currentPage: page,
@@ -105,7 +162,10 @@ export const getRestaurantById = async (
       return;
     }
 
-    res.status(200).json({ restaurant });
+    // Process restaurant to convert image URL to presigned URL
+    const processedRestaurant = await processRestaurantImages(restaurant);
+
+    res.status(200).json({ restaurant: processedRestaurant });
   } catch (error) {
     console.error("Error getting restaurant:", error);
     res.status(500).json({ message: "Server error while fetching restaurant" });
@@ -150,9 +210,12 @@ export const createRestaurant = async (
       userId,
     });
 
+    // Process restaurant to convert image URL to presigned URL before returning
+    const processedRestaurant = await processRestaurantImages(newRestaurant);
+
     res.status(201).json({
       message: "Restaurant created successfully",
-      restaurant: newRestaurant,
+      restaurant: processedRestaurant,
     });
   } catch (error) {
     console.error("Error creating restaurant:", error);
@@ -209,10 +272,16 @@ export const updateRestaurant = async (
 
     // Update the restaurant
     await restaurant.update(updateData);
+    
+    // Reload to get the updated restaurant data
+    await restaurant.reload();
+    
+    // Process restaurant to convert image URL to presigned URL
+    const processedRestaurant = await processRestaurantImages(restaurant);
 
     res.status(200).json({
       message: "Restaurant updated successfully",
-      restaurant,
+      restaurant: processedRestaurant,
     });
   } catch (error) {
     console.error("Error updating restaurant:", error);
@@ -477,5 +546,74 @@ export const deleteTable = async (
   } catch (error) {
     console.error("Error deleting table:", error);
     res.status(500).json({ message: "Server error while deleting table" });
+  }
+};
+
+// Generate a presigned URL for direct image upload (admin only)
+export const getPresignedUploadUrl = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const { role } = req.user;
+
+    // Only admins can get upload URLs
+    if (role !== "admin") {
+      res.status(403).json({ message: "Not authorized to upload images" });
+      return;
+    }
+
+    const filename = req.query.filename as string;
+    const contentType = (req.query.contentType as string) || "image/jpeg";
+
+    if (!filename) {
+      res.status(400).json({ message: "Filename is required" });
+      return;
+    }
+
+    // Generate presigned URL for uploading
+    const { uploadUrl, key } = generatePresignedUploadUrl(
+      filename,
+      "restaurant-images",
+      contentType
+    );
+
+    // Return the URL and the future path to the image
+    res.status(200).json({
+      uploadUrl,
+      key,
+      imageUrl: `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+    });
+  } catch (error) {
+    console.error("Error generating presigned URL:", error);
+    res.status(500).json({ message: "Server error generating upload URL" });
+  }
+};
+
+// Generate a presigned URL for accessing an image
+export const getPresignedAccessUrl = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const key = req.query.key as string;
+    const url = req.query.url as string;
+
+    if (!key && !url) {
+      res.status(400).json({ message: "Either key or url must be provided" });
+      return;
+    }
+
+    const fileIdentifier = key || url;
+
+    // Generate presigned URL for accessing the file
+    const presignedUrl = await generatePresignedGetUrl(fileIdentifier);
+
+    res.status(200).json({
+      url: presignedUrl,
+    });
+  } catch (error) {
+    console.error("Error generating access URL:", error);
+    res.status(500).json({ message: "Server error generating access URL" });
   }
 };
