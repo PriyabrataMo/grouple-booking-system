@@ -12,6 +12,7 @@ import {
   ForbiddenError,
   InternalServerError,
 } from "../utils/errors";
+import { bookingCacheService } from "../services/bookingCacheService";
 
 // Get all bookings (admin) or user's bookings
 export const getBookings = async (
@@ -21,10 +22,25 @@ export const getBookings = async (
   try {
     const { id: userId, role } = req.user;
 
+    // Try to get from cache first based on user role
+    let bookings;
+    if (role === "admin") {
+      bookings = await bookingCacheService.getAdminBookings();
+    } else {
+      bookings = await bookingCacheService.getUserBookings(userId.toString());
+    }
+
+    // If cache hit, return the cached data
+    if (bookings) {
+      res.status(200).json({ bookings });
+      return;
+    }
+
+    // Cache miss, fetch from database
     // If admin, get all bookings, otherwise get only user's bookings
     const where = role === "admin" ? {} : { userId };
 
-    const bookings = await Booking.findAll({
+    bookings = await Booking.findAll({
       where,
       include: [
         { model: User, attributes: ["id", "username", "email"] },
@@ -33,6 +49,13 @@ export const getBookings = async (
       ],
       order: [["startTime", "DESC"]],
     });
+
+    // Cache the fetched data
+    if (role === "admin") {
+      await bookingCacheService.cacheAdminBookings(bookings);
+    } else {
+      await bookingCacheService.cacheUserBookings(userId.toString(), bookings);
+    }
 
     res.status(200).json({ bookings });
   } catch (error: any) {
@@ -86,14 +109,30 @@ export const getBookingById = async (
       throw new BadRequestError("Invalid booking ID");
     }
 
-    // Find the booking
-    const booking = await Booking.findByPk(bookingId, {
-      include: [
-        { model: User, attributes: ["id", "username", "email"] },
-        { model: Restaurant },
-        { model: RestaurantTable },
-      ],
-    });
+    // Try to get from cache first
+    const cachedBooking = await bookingCacheService.getBookingById(
+      bookingId.toString()
+    );
+    let booking;
+
+    if (cachedBooking) {
+      // Cache hit, use cached data
+      booking = cachedBooking;
+    } else {
+      // Cache miss, fetch from database
+      booking = await Booking.findByPk(bookingId, {
+        include: [
+          { model: User, attributes: ["id", "username", "email"] },
+          { model: Restaurant },
+          { model: RestaurantTable },
+        ],
+      });
+
+      // Cache the fetched data
+      if (booking) {
+        await bookingCacheService.cacheBooking(bookingId.toString(), booking);
+      }
+    }
 
     if (!booking) {
       throw new NotFoundError("Booking");
@@ -153,6 +192,16 @@ export const createBooking = async (
       endTime,
       status: "pending",
     });
+
+    // Invalidate relevant caches after creating a booking
+    await bookingCacheService.invalidateBookingCache("user", userId.toString());
+    if (newBooking.restaurantId) {
+      await bookingCacheService.invalidateBookingCache(
+        "restaurant",
+        newBooking.restaurantId.toString()
+      );
+    }
+    await bookingCacheService.invalidateBookingCache("all");
 
     res.status(201).json({
       message: "Booking created successfully",
@@ -289,6 +338,9 @@ export const updateBooking = async (
       ],
     });
 
+    // Invalidate caches after update
+    await bookingCacheService.invalidateBookingCache(bookingId.toString());
+
     res.status(200).json({
       message: "Booking updated successfully",
       booking: updatedBooking,
@@ -347,8 +399,26 @@ export const deleteBooking = async (
       throw new ForbiddenError("Not authorized to delete this booking");
     }
 
+    // Store booking info before deletion for cache invalidation
+    const bookingUserId = booking.userId;
+    const restaurantId = booking.restaurantId;
+
     // Delete the booking
     await booking.destroy();
+
+    // Invalidate caches after deletion
+    await bookingCacheService.invalidateBookingCache(bookingId.toString());
+    await bookingCacheService.invalidateBookingCache(
+      "user",
+      bookingUserId.toString()
+    );
+    if (restaurantId) {
+      await bookingCacheService.invalidateBookingCache(
+        "restaurant",
+        restaurantId.toString()
+      );
+    }
+    await bookingCacheService.invalidateBookingCache("all");
 
     res.status(200).json({
       message: "Booking deleted successfully",

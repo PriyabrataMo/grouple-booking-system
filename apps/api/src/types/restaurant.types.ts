@@ -30,6 +30,15 @@ export interface RestaurantDTO {
   updatedAt: Date;
 }
 
+export interface RestaurantWithTables extends RestaurantDTO {
+  Tables?: TableDTO[];
+  User?: {
+    id: number;
+    username: string;
+    email: string;
+  };
+}
+
 export interface RestaurantCreateInput {
   name: string;
   address: string;

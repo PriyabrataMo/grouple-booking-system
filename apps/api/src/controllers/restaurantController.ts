@@ -16,6 +16,7 @@ import {
   generatePresignedUploadUrl,
   generatePresignedGetUrl,
 } from "../utils/s3";
+import { restaurantCacheService } from "../services/restaurantCacheService";
 
 /**
  * Helper function to process restaurant data and convert image URLs to presigned URLs
@@ -24,25 +25,28 @@ import {
  */
 const processRestaurantImages = async (restaurant: any) => {
   if (!restaurant) return null;
-  
+
   // Convert to plain object if it's a Sequelize model instance
   const data = restaurant.toJSON ? restaurant.toJSON() : { ...restaurant };
-  
+
   // Process main restaurant image if it exists
   if (data.imageUrl) {
     try {
       data.imageUrl = await generatePresignedGetUrl(data.imageUrl);
     } catch (error) {
-      console.error("Error generating presigned URL for restaurant image:", error);
+      console.error(
+        "Error generating presigned URL for restaurant image:",
+        error
+      );
       // Keep original URL if generation fails
     }
   }
-  
+
   // Process menu images array if it exists
   if (data.menuImages && Array.isArray(data.menuImages)) {
     try {
       data.menuImages = await Promise.all(
-        data.menuImages.map((url: string) => 
+        data.menuImages.map((url: string) =>
           url ? generatePresignedGetUrl(url) : url
         )
       );
@@ -51,7 +55,7 @@ const processRestaurantImages = async (restaurant: any) => {
       // Keep original URLs if generation fails
     }
   }
-  
+
   return data;
 };
 
@@ -62,8 +66,10 @@ const processRestaurantImages = async (restaurant: any) => {
  */
 const processMultipleRestaurants = async (restaurants: any[]) => {
   if (!restaurants || !Array.isArray(restaurants)) return [];
-  
-  return Promise.all(restaurants.map(restaurant => processRestaurantImages(restaurant)));
+
+  return Promise.all(
+    restaurants.map((restaurant) => processRestaurantImages(restaurant))
+  );
 };
 
 // Get all restaurants with pagination and sorting
@@ -99,13 +105,51 @@ export const getRestaurants = async (
     if (role === "admin") {
       whereClause = { userId };
     }
-    // For regular users, show all restaurants (no where clause)
 
+    // Try to get data from cache first (only for non-filtered, first page requests)
+    let restaurants;
+    let count;
+    let totalPages;
+    let processedRestaurants;
+
+    const isDefaultRequest =
+      page === 1 &&
+      limit === 10 &&
+      sortBy === "name" &&
+      sortOrder === "asc" &&
+      Object.keys(whereClause).length === 0;
+
+    if (isDefaultRequest) {
+      // Try to get from cache for default requests
+      processedRestaurants = await restaurantCacheService.getAllRestaurants();
+
+      if (processedRestaurants) {
+        // If cache hit, use the cached data
+        count = processedRestaurants.length;
+        totalPages = Math.ceil(count / limit);
+
+        // Only return the paginated portion
+        processedRestaurants = processedRestaurants.slice(
+          offset,
+          offset + limit
+        );
+
+        res.status(200).json({
+          restaurants: processedRestaurants,
+          totalCount: count,
+          totalPages,
+          currentPage: page,
+        });
+        return;
+      }
+    }
+
+    // Cache miss or custom request, get from database
     // Get total count for pagination with the appropriate where clause
-    const count = await Restaurant.count({ where: whereClause });
+    count = await Restaurant.count({ where: whereClause });
 
     // Fetch restaurants with pagination and sorting
-    const restaurants = await Restaurant.findAll({
+    restaurants = await Restaurant.findAll({
       where: whereClause,
       include: [
         { model: User, attributes: ["id", "username", "email"] },
@@ -117,10 +161,26 @@ export const getRestaurants = async (
     });
 
     // Process restaurants to convert image URLs to presigned URLs
-    const processedRestaurants = await processMultipleRestaurants(restaurants);
+    processedRestaurants = await processMultipleRestaurants(restaurants);
+
+    // Cache the results if it's a default request
+    if (isDefaultRequest) {
+      // Get all restaurants for caching (not just paginated results)
+      const allRestaurants = await Restaurant.findAll({
+        include: [
+          { model: User, attributes: ["id", "username", "email"] },
+          { model: RestaurantTable },
+        ],
+        order: [["name", "ASC"]],
+      });
+
+      const allProcessedRestaurants =
+        await processMultipleRestaurants(allRestaurants);
+      restaurantCacheService.cacheAllRestaurants(allProcessedRestaurants);
+    }
 
     // Calculate total pages
-    const totalPages = Math.ceil(count / limit);
+    totalPages = Math.ceil(count / limit);
 
     res.status(200).json({
       restaurants: processedRestaurants,
@@ -149,6 +209,18 @@ export const getRestaurantById = async (
       return;
     }
 
+    // Try to get from cache first
+    const cachedRestaurant = await restaurantCacheService.getRestaurantById(
+      restaurantId.toString()
+    );
+
+    if (cachedRestaurant) {
+      // Cache hit
+      res.status(200).json({ restaurant: cachedRestaurant });
+      return;
+    }
+
+    // Cache miss, get from database
     // Find the restaurant
     const restaurant = await Restaurant.findByPk(restaurantId, {
       include: [
@@ -164,6 +236,12 @@ export const getRestaurantById = async (
 
     // Process restaurant to convert image URL to presigned URL
     const processedRestaurant = await processRestaurantImages(restaurant);
+
+    // Cache the restaurant data for future requests
+    await restaurantCacheService.cacheRestaurant(
+      restaurantId.toString(),
+      processedRestaurant
+    );
 
     res.status(200).json({ restaurant: processedRestaurant });
   } catch (error) {
@@ -212,6 +290,9 @@ export const createRestaurant = async (
 
     // Process restaurant to convert image URL to presigned URL before returning
     const processedRestaurant = await processRestaurantImages(newRestaurant);
+
+    // Invalidate the all restaurants cache since we added a new one
+    await restaurantCacheService.invalidateRestaurantCache("all");
 
     res.status(201).json({
       message: "Restaurant created successfully",
@@ -272,12 +353,17 @@ export const updateRestaurant = async (
 
     // Update the restaurant
     await restaurant.update(updateData);
-    
+
     // Reload to get the updated restaurant data
     await restaurant.reload();
-    
+
     // Process restaurant to convert image URL to presigned URL
     const processedRestaurant = await processRestaurantImages(restaurant);
+
+    // Invalidate cache for this restaurant and the all restaurants list
+    await restaurantCacheService.invalidateRestaurantCache(
+      restaurantId.toString()
+    );
 
     res.status(200).json({
       message: "Restaurant updated successfully",
@@ -341,6 +427,11 @@ export const deleteRestaurant = async (
 
     // Delete the restaurant
     await restaurant.destroy();
+
+    // Invalidate cache for this restaurant and the all restaurants list
+    await restaurantCacheService.invalidateRestaurantCache(
+      restaurantId.toString()
+    );
 
     res.status(200).json({
       message: "Restaurant deleted successfully",
