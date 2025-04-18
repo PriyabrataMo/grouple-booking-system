@@ -1,35 +1,105 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { signup } from "../utils/auth";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
+import {
+  isStrongPassword,
+  getPasswordStrengthFeedback,
+  isValidEmail,
+  isValidUsername,
+  sanitizeInput,
+} from "../utils/validations";
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Form fields
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState("user");
+
+  // Validation states
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordStrengthFeedback, setPasswordStrengthFeedback] = useState<
+    string[]
+  >([]);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordTouched, setPasswordTouched] = useState(false);
+
+  // Check password strength when it changes
+  useEffect(() => {
+    if (password && passwordTouched) {
+      const feedback = getPasswordStrengthFeedback(password);
+      setPasswordStrengthFeedback(feedback);
+    }
+  }, [password, passwordTouched]);
+
+  const validateForm = (): boolean => {
+    // Reset all errors
+    setUsernameError("");
+    setEmailError("");
+    setPasswordError("");
+    setError("");
+
+    let isValid = true;
+
+    // Sanitize and validate username
+    const cleanUsername = sanitizeInput(username);
+    if (!isValidUsername(cleanUsername)) {
+      setUsernameError(
+        "Username must be 3-20 characters and can only contain letters, numbers, and underscore"
+      );
+      isValid = false;
+    }
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      isValid = false;
+    }
+
+    // Validate password
+    if (!isStrongPassword(password)) {
+      setPasswordError(
+        "Please ensure your password meets all the strength requirements"
+      );
+      isValid = false;
+    }
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      isValid = false;
+    }
+
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    // Validate the form before submission
+    if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
 
     try {
+      // Sanitize inputs before sending
+      const cleanUsername = sanitizeInput(username);
+      const cleanFullName = fullName ? sanitizeInput(fullName) : undefined;
+
       // Call the signup function from auth.ts
-      await signup(username, email, password, fullName, role);
+      await signup(cleanUsername, email, password, cleanFullName, role);
 
       // Update the auth context state
       login();
@@ -65,16 +135,22 @@ const SignupPage: React.FC = () => {
               htmlFor="username"
               className="block text-gray-700 font-medium mb-2"
             >
-              Username
+              Username <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 ${usernameError ? "border-red-500" : ""}`}
               required
             />
+            {usernameError && (
+              <p className="text-red-500 text-sm mt-1">{usernameError}</p>
+            )}
+            <p className="text-gray-500 text-xs mt-1">
+              3-20 characters, letters, numbers, and underscore only
+            </p>
           </div>
 
           <div className="mb-4">
@@ -98,16 +174,19 @@ const SignupPage: React.FC = () => {
               htmlFor="email"
               className="block text-gray-700 font-medium mb-2"
             >
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 ${emailError ? "border-red-500" : ""}`}
               required
             />
+            {emailError && (
+              <p className="text-red-500 text-sm mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -115,16 +194,50 @@ const SignupPage: React.FC = () => {
               htmlFor="password"
               className="block text-gray-700 font-medium mb-2"
             >
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              onFocus={() => setPasswordTouched(true)}
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 ${passwordError ? "border-red-500" : ""}`}
               required
             />
+            {passwordError && (
+              <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+            )}
+
+            {/* Password strength requirements */}
+            {passwordTouched && (
+              <div className="mt-2 text-sm">
+                <p className="font-medium text-gray-700">
+                  Password requirements:
+                </p>
+                <ul className="list-disc pl-5 mt-1">
+                  {[
+                    "At least 8 characters",
+                    "One uppercase letter",
+                    "One lowercase letter",
+                    "One number",
+                    "One special character",
+                  ].map((req, index) => {
+                    const isMet = passwordStrengthFeedback.every(
+                      (feedback) => !feedback.includes(req.toLowerCase())
+                    );
+                    return (
+                      <li
+                        key={index}
+                        className={isMet ? "text-green-600" : "text-gray-500"}
+                      >
+                        {req} {isMet && "✓"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="mb-6">
@@ -132,7 +245,7 @@ const SignupPage: React.FC = () => {
               htmlFor="confirmPassword"
               className="block text-gray-700 font-medium mb-2"
             >
-              Confirm Password
+              Confirm Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
@@ -144,12 +257,12 @@ const SignupPage: React.FC = () => {
             />
           </div>
 
-          <div className="mb-4">
+          <div className="mb-6">
             <label
               htmlFor="role"
               className="block text-gray-700 font-medium mb-2"
             >
-              Role
+              Role <span className="text-red-500">*</span>
             </label>
             <select
               id="role"

@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
@@ -16,6 +16,13 @@ import {
   AuthenticatedRequest,
 } from "../types/express.types";
 import { tokenBlacklist } from "../utils/tokenBlacklist";
+import {
+  getPasswordStrengthErrors,
+  isValidEmail,
+  isValidUsername,
+  sanitizeInput,
+  escapeSqlWildcards,
+} from "../utils/validations";
 
 dotenv.config();
 
@@ -30,17 +37,71 @@ export const signup = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { username, email, password, fullName, role } = req.body;
+    let { username, email, password, fullName, role } = req.body;
+
+    // Validate and sanitize inputs
+    const validationErrors: Record<string, string[]> = {};
+
+    // Sanitize inputs
+    username = sanitizeInput(username);
+    email = email?.trim();
+    if (fullName) {
+      fullName = sanitizeInput(fullName);
+    }
+
+    // Validate username
+    if (!isValidUsername(username)) {
+      validationErrors.username = [
+        "Username must be 3-20 characters and contain only letters, numbers, and underscore",
+      ];
+    }
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      validationErrors.email = ["Please provide a valid email address"];
+    }
+
+    // Validate password strength
+    const passwordErrors = getPasswordStrengthErrors(password);
+    if (passwordErrors.length > 0) {
+      validationErrors.password = passwordErrors;
+    }
+
+    // If validation fails, return error
+    if (Object.keys(validationErrors).length > 0) {
+      res.status(422).json({
+        message: "Validation failed",
+        errors: validationErrors,
+      });
+      return;
+    }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    const existingUser = await User.findOne({
+      where: {
+        email: escapeSqlWildcards(email),
+      },
+    });
+
     if (existingUser) {
       res.status(400).json({ message: "Email already registered" });
       return;
     }
 
+    // Check for duplicate username
+    const existingUsername = await User.findOne({
+      where: {
+        username: escapeSqlWildcards(username),
+      },
+    });
+
+    if (existingUsername) {
+      res.status(400).json({ message: "Username already taken" });
+      return;
+    }
+
     // Hash password
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(12); // Increased from 10 to 12 for stronger hashing
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Determine user role
@@ -110,9 +171,26 @@ export const login = async (
   try {
     const { email, password, isAdmin } = req.body;
 
+    // Basic validation
+    if (!email || !password) {
+      res.status(400).json({ message: "Email and password are required" });
+      return;
+    }
+
+    // Sanitize inputs
+    const sanitizedEmail = email.trim().toLowerCase();
+
+    // Rate limiting could be added here
+
     // Find user by email
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({
+      where: {
+        email: escapeSqlWildcards(sanitizedEmail),
+      },
+    });
+
     if (!user) {
+      // Use the same error message for security
       res.status(401).json({ message: "Invalid credentials" });
       return;
     }
@@ -120,6 +198,11 @@ export const login = async (
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      // Consider implementing a delay here for security against timing attacks
+      await new Promise((resolve) =>
+        setTimeout(resolve, 300 + Math.random() * 100)
+      );
+
       res.status(401).json({ message: "Invalid credentials" });
       return;
     }
@@ -175,48 +258,41 @@ export const login = async (
 };
 
 // Logout user
-export const logout = (req: Request, res: Response): void => {
+export const logout = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
-    // Get token from cookie or authorization header
-    const token =
-      req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
+    // Get token from authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(" ")[1];
 
     if (token) {
-      // Get token expiration from JWT
-      const decoded = jwt.decode(token) as JwtPayload;
-      const expiryTimestamp =
-        decoded?.exp || Math.floor(Date.now() / 1000) + 3600;
-
       // Add token to blacklist
+      const decodedToken = jwt.verify(token, String(JWT_SECRET)) as JwtPayload;
+      const expiryTimestamp = decodedToken.exp || 0;
+
+      // Add token to blacklist until expiry time
       tokenBlacklist.addToken(token, expiryTimestamp);
+
+      // Clear cookie
+      res.clearCookie("token");
     }
 
-    // Clear the cookie
-    res.cookie("token", "", {
-      httpOnly: true,
-      expires: new Date(0),
-    });
-
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ message: "Logout successful" });
   } catch (error) {
     console.error("Logout error:", error);
     res.status(500).json({ message: "Server error during logout" });
   }
 };
 
-// Get current user info
+// Get current user
 export const getCurrentUser = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    // User ID comes from the auth middleware
-    const userId = req.user?.id;
-
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
+    const userId = req.user.id;
 
     const user = await User.findByPk(userId, {
       attributes: { exclude: ["password"] },

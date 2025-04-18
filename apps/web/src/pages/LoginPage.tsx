@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi } from "../utils/auth";
 import { useAuth } from "../hooks/useAuth";
 import { getErrorMessage } from "../types/errors";
+import { isValidEmail } from "../utils/validations";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -10,16 +11,48 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const validateForm = (): boolean => {
+    // Reset all errors
+    setEmailError("");
+    setError("");
+
+    let isValid = true;
+
+    // Validate email
+    if (!isValidEmail(email)) {
+      setEmailError("Please enter a valid email address");
+      isValid = false;
+    }
+
+    // Simple validation for empty password
+    if (!password.trim()) {
+      setError("Password cannot be empty");
+      isValid = false;
+    }
+
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate the form before submission
+    if (!validateForm()) {
+      return;
+    }
+
     setError("");
     setIsLoading(true);
 
     try {
+      // Sanitize email before sending
+      const sanitizedEmail = email.trim().toLowerCase();
+
       // Call the API login function from auth.ts
-      await loginApi(email, password);
+      await loginApi(sanitizedEmail, password);
 
       // Update the auth context state
       login();
@@ -56,16 +89,19 @@ const LoginPage: React.FC = () => {
               htmlFor="email"
               className="block text-gray-700 font-medium mb-2"
             >
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 ${emailError ? "border-red-500" : ""}`}
               required
             />
+            {emailError && (
+              <p className="text-red-500 text-sm mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="mb-6">
@@ -73,7 +109,7 @@ const LoginPage: React.FC = () => {
               htmlFor="password"
               className="block text-gray-700 font-medium mb-2"
             >
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"
