@@ -14,6 +14,8 @@
   "license": "ISC",
   "dependencies": {
     "@types/socket.io": "^3.0.2",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.7",
@@ -25,6 +27,8 @@
     "mysql2": "^3.14.0",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.1",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
