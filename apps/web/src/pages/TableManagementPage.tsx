@@ -13,6 +13,17 @@ import {
   TableUpdateInput,
 } from "../utils/restaurantApi";
 import { getErrorMessage } from "../types/errors";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import { Loader } from "lucide-react";
 
 const TableManagementPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +37,13 @@ const TableManagementPage: React.FC = () => {
   const navigate = useNavigate();
 
   const isAdmin = user?.role === "admin";
+
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [tableToDelete, setTableToDelete] = useState<RestaurantTable | null>(
+    null
+  );
+  const [deleteLoading, setDeleteLoading] = useState<boolean>(false);
 
   // Form state for new/edit table
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -126,20 +144,21 @@ const TableManagementPage: React.FC = () => {
 
     if (!restaurantId) return;
 
+    // Check if table number already exists (excluding current table if editing)
+    const tableNumberExists = tables.some(
+      (t) =>
+        t.tableNumber === tableFormData.tableNumber &&
+        (!isEditing || (isEditing && t.id !== currentTableId))
+    );
+
+    if (tableNumberExists) {
+      setError(`Table number ${tableFormData.tableNumber} already exists`);
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     try {
       setError(null);
-
-      // Check if table number already exists (excluding current table if editing)
-      const tableNumberExists = tables.some(
-        (t) =>
-          t.tableNumber === tableFormData.tableNumber &&
-          (!isEditing || (isEditing && t.id !== currentTableId))
-      );
-
-      if (tableNumberExists) {
-        setError(`Table number ${tableFormData.tableNumber} already exists`);
-        return;
-      }
 
       if (isEditing && currentTableId) {
         // Update existing table
@@ -183,26 +202,52 @@ const TableManagementPage: React.FC = () => {
     }
   };
 
-  const handleDeleteTable = async (tableId: number) => {
-    if (!restaurantId) return;
+  const openDeleteDialog = (table: RestaurantTable) => {
+    setTableToDelete(table);
+    setIsDeleteDialogOpen(true);
+  };
 
-    if (window.confirm("Are you sure you want to delete this table?")) {
-      try {
-        await deleteRestaurantTable(restaurantId, tableId);
+  const closeDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setTimeout(() => {
+      setTableToDelete(null);
+    }, 200); // Small delay to prevent UI flicker
+  };
 
-        // Remove table from state
-        setTables((prevTables) =>
-          prevTables.filter((table) => table.id !== tableId)
-        );
+  const handleDeleteTableConfirmed = async () => {
+    // Ensure we have a table to delete
+    if (!tableToDelete || !restaurantId) return;
 
-        setSuccessMessage("Table deleted successfully");
+    try {
+      setDeleteLoading(true);
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } catch (err) {
-        setError(getErrorMessage(err) || "Failed to delete table");
-        console.error("Error deleting table:", err);
-      }
+      // Call API to delete the table
+      await deleteRestaurantTable(restaurantId, tableToDelete.id);
+
+      // Remove table from state
+      setTables((prevTables) =>
+        prevTables.filter((table) => table.id !== tableToDelete.id)
+      );
+
+      setSuccessMessage("Table deleted successfully");
+
+      // Close the dialog
+      closeDeleteDialog();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err) {
+      setError(getErrorMessage(err) || "Failed to delete table");
+      console.error("Error deleting table:", err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteTable = (tableId: number) => {
+    const table = tables.find((t) => t.id === tableId);
+    if (table) {
+      openDeleteDialog(table);
     }
   };
 
@@ -231,174 +276,206 @@ const TableManagementPage: React.FC = () => {
           <div className="flex justify-center p-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
           </div>
-        ) : error ? (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 m-6 rounded">
-            {error}
-          </div>
         ) : (
-          <>
+          <div className="p-6">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 mb-6 rounded">
+                {error}
+              </div>
+            )}
+
             {successMessage && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 m-6 rounded">
+              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 mb-6 rounded">
                 {successMessage}
               </div>
             )}
 
-            <div className="p-6">
-              <div className="bg-gray-50 p-6 rounded-lg mb-8">
-                <h2 className="text-xl font-semibold mb-4">
-                  {isEditing ? "Edit Table" : "Add New Table"}
-                </h2>
-                <form onSubmit={handleSubmit}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div>
-                      <label
-                        htmlFor="tableNumber"
-                        className="block text-gray-700 font-medium mb-2"
-                      >
-                        Table Number*
-                      </label>
-                      <input
-                        type="number"
-                        id="tableNumber"
-                        name="tableNumber"
-                        min="1"
-                        value={tableFormData.tableNumber}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="capacity"
-                        className="block text-gray-700 font-medium mb-2"
-                      >
-                        Capacity*
-                      </label>
-                      <input
-                        type="number"
-                        id="capacity"
-                        name="capacity"
-                        min="1"
-                        max="20"
-                        value={tableFormData.capacity}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-
-                    <div className="flex items-center">
-                      <div className="mt-6">
-                        <label className="inline-flex items-center">
-                          <input
-                            type="checkbox"
-                            name="isAvailable"
-                            checked={tableFormData.isAvailable}
-                            onChange={handleInputChange}
-                            className="form-checkbox h-5 w-5 text-blue-600"
-                          />
-                          <span className="ml-2 text-gray-700">Available</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-4">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            <div className="bg-gray-50 p-6 rounded-lg mb-8">
+              <h2 className="text-xl font-semibold mb-4">
+                {isEditing ? "Edit Table" : "Add New Table"}
+              </h2>
+              <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div>
+                    <label
+                      htmlFor="tableNumber"
+                      className="block text-gray-700 font-medium mb-2"
                     >
-                      {isEditing ? "Update Table" : "Add Table"}
-                    </button>
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={resetForm}
-                        className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                      Table Number*
+                    </label>
+                    <input
+                      type="number"
+                      id="tableNumber"
+                      name="tableNumber"
+                      min="1"
+                      value={tableFormData.tableNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
                   </div>
-                </form>
-              </div>
 
-              <h2 className="text-xl font-semibold mb-4">Tables</h2>
-              {tables.length === 0 ? (
-                <div className="bg-gray-50 p-8 text-center rounded-lg">
-                  <p className="text-lg text-gray-600">
-                    No tables added yet. Add a table to get started.
-                  </p>
+                  <div>
+                    <label
+                      htmlFor="capacity"
+                      className="block text-gray-700 font-medium mb-2"
+                    >
+                      Capacity*
+                    </label>
+                    <input
+                      type="number"
+                      id="capacity"
+                      name="capacity"
+                      min="1"
+                      max="20"
+                      value={tableFormData.capacity}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-center">
+                    <div className="mt-6">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="checkbox"
+                          name="isAvailable"
+                          checked={tableFormData.isAvailable}
+                          onChange={handleInputChange}
+                          className="form-checkbox h-5 w-5 text-blue-600"
+                        />
+                        <span className="ml-2 text-gray-700">Available</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Table Number
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Capacity
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {tables
-                        .sort((a, b) => a.tableNumber - b.tableNumber)
-                        .map((table) => (
-                          <tr key={table.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {table.tableNumber}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {table.capacity} people
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  table.isAvailable
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {table.isAvailable
-                                  ? "Available"
-                                  : "Unavailable"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <button
-                                onClick={() => handleEditTable(table)}
-                                className="text-yellow-600 hover:text-yellow-800 mr-4"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteTable(table.id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
+
+                <div className="flex space-x-4">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                  >
+                    {isEditing ? "Update Table" : "Add Table"}
+                  </button>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
-              )}
+              </form>
             </div>
-          </>
+
+            <h2 className="text-xl font-semibold mb-4">Tables</h2>
+            {tables.length === 0 ? (
+              <div className="bg-gray-50 p-8 text-center rounded-lg">
+                <p className="text-lg text-gray-600">
+                  No tables added yet. Add a table to get started.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Table Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Capacity
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {tables
+                      .sort((a, b) => a.tableNumber - b.tableNumber)
+                      .map((table) => (
+                        <tr key={table.id}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {table.tableNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {table.capacity} people
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                table.isAvailable
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {table.isAvailable ? "Available" : "Unavailable"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => handleEditTable(table)}
+                              className="text-yellow-600 hover:text-yellow-800 mr-4"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTable(table.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
       </div>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Table</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete Table {tableToDelete?.tableNumber}
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTableConfirmed}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteLoading ? (
+                <div className="flex items-center">
+                  <Loader className="animate-spin h-4 w-4 mr-2" />
+                  Deleting...
+                </div>
+              ) : (
+                "Delete Table"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
