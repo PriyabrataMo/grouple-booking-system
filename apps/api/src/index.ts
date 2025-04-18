@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { initDatabase } from "./models/index";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -87,7 +87,17 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(
+  "/api-docs",
+  (req: Request, res: Response, next: NextFunction) => {
+    console.log(req.url);
+    console.log(res.statusCode);
+    console.log("API Docs accessed");
+    next();
+  },
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 // Initialize database and start server
 const startServer = async () => {
