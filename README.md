@@ -45,6 +45,9 @@ This full-stack web application implements a complete booking management system 
 
 - Swagger Documentation: http://13.201.5.90:3000/api-docs
 
+- Postman Collection: [Grouple Booking System API.postman_collection.json](/Grouple%20Booking%20System%20API.postman_collection.json)
+- Postman Environment: [Grouple Api Environment Variables.postman_environment.json](/Grouple%20Api%20Environment%20Variables.postman_environment.json)
+
 ### MySQL Database on AWS RDS
 
 - Host: grouple-booking.c5ky0w4ogkab.ap-south-1.rds.amazonaws.com
@@ -61,11 +64,6 @@ This full-stack web application implements a complete booking management system 
 ### Database
 
 - MySQL Schema file: [mysql-schema.sql](/mysql-schema.sql)
-
-### API Documentation
-
-- Postman Collection: [Grouple Booking System API.postman_collection.json](/Grouple%20Booking%20System%20API.postman_collection.json)
-- Postman Environment: [Grouple Api Environment Variables.postman_environment.json](/Grouple%20Api%20Environment%20Variables.postman_environment.json)
 
 ## Running Locally
 
@@ -84,7 +82,7 @@ pnpm install
 4. Start development servers:
 
 ```
-pnpm dev
+npm run dev
 ```
 
 This will concurrently start both the frontend and backend services.
