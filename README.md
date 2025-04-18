@@ -1,84 +1,102 @@
-# Turborepo starter
+# Grouple Booking System
 
-This Turborepo starter is maintained by the Turborepo core team.
+## Project Overview
 
-## Using this example
+This full-stack web application implements a complete booking management system using React.js (frontend), Node.js & Express.js (backend), and MySQL (database). The system includes real-time communication features, authentication, and is deployed to AWS cloud services.
 
-Run the following command:
+## Completed Tasks
 
-```sh
-npx create-turbo@latest
+### Task 1: Frontend Implementation ✅
+
+- React.js frontend with intuitive UI for the booking system
+- User authentication (signup & login) with JWT
+- Dashboard pages for managing bookings (CRUD operations)
+- Pagination and sorting functionality
+- Error handling and loading states
+- State management using React Context API
+
+### Task 2: RESTful API Backend ✅
+
+- JWT authentication and authorization
+- Input validation and error handling
+- MySQL database integration using Sequelize ORM
+- Pagination and sorting for efficient querying
+- Caching of frequently accessed resources using Redis
+
+### Task 3: Real-Time Communication ✅
+
+- Implemented WebSocket connection using Socket.IO
+- Bidirectional communication between clients and server
+- Integration with existing RESTful API for real-time updates
+- Real-time chat interface for communication
+
+### Task 4: AWS Deployment ✅
+
+- Frontend deployed to EC2: http://13.201.5.90:5173
+- Backend API deployed to EC2: http://13.201.5.90:3000
+- Database deployed on AWS RDS
+- User profile image uploads stored in S3
+- VPC between EC2 and RDS
+- Configured autoscaling for EC2 instances
+
+## Deployment Details
+
+### API Documentation
+
+- Swagger Documentation: http://13.201.5.90:3000/api-docs
+
+### MySQL Database on AWS RDS
+
+- Host: grouple-booking.c5ky0w4ogkab.ap-south-1.rds.amazonaws.com
+- Port: 3306
+- Connected successfully from EC2 via VPC
+
+### S3 Bucket for Profile Image Uploads
+
+- Name: grouple-user-uploads
+- Bucket Policy: Public access blocked, signed URL access only
+
+## Project Files
+
+### Database
+
+- MySQL Schema file: [mysql-schema.sql](/mysql-schema.sql)
+
+### API Documentation
+
+- Postman Collection: [Grouple Booking System API.postman_collection.json](/Grouple%20Booking%20System%20API.postman_collection.json)
+- Postman Environment: [Grouple Api Environment Variables.postman_environment.json](/Grouple%20Api%20Environment%20Variables.postman_environment.json)
+
+## Running Locally
+
+1. Clone the repository
+2. Install dependencies:
+
+```
+pnpm install
 ```
 
-## What's inside?
+3. Set up environment variables:
 
-This Turborepo includes the following packages/apps:
+   - Copy `.env.example` to `.env` in the api directory
+   - Configure database and AWS credentials
 
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+4. Start development servers:
 
 ```
-cd my-turborepo
-pnpm build
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-```
-cd my-turborepo
 pnpm dev
 ```
 
-### Remote Caching
+This will concurrently start both the frontend and backend services.
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+## Project Structure
 
-Turborepo can use a technique known as [Remote Caching](https://turbo.build/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+- `apps/api`: Backend Express.js application
+- `apps/web`: Frontend React.js application
+- `packages`: Shared configuration packages
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+## Security Note
 
-```
-cd my-turborepo
-npx turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-npx turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turbo.build/docs/core-concepts/monorepos/running-tasks)
-- [Caching](https://turbo.build/docs/core-concepts/caching)
-- [Remote Caching](https://turbo.build/docs/core-concepts/remote-caching)
-- [Filtering](https://turbo.build/docs/core-concepts/monorepos/filtering)
-- [Configuration Options](https://turbo.build/docs/reference/configuration)
-- [CLI Usage](https://turbo.build/docs/reference/command-line-reference)
+- All AWS credentials are securely stored
+- S3 bucket has proper access controls
+- VPC isolates database from public access

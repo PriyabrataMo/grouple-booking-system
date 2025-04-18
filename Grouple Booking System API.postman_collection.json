@@ -1,0 +1,1086 @@
+{
+	"info": {
+		"_postman_id": "a140f0dd-5ab7-4a09-8488-282ec7169fa7",
+		"name": "Grouple Booking System API",
+		"description": "API documentation for the Grouple Booking System",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28708931",
+		"_collection_link": "https://restless-moon-390219.postman.co/workspace/My-Workspace~24d04f98-84b8-496b-8760-5d381fc47076/collection/28708931-a140f0dd-5ab7-4a09-8488-282ec7169fa7?action=share&source=collection_link&creator=28708931"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"username\": \"testuser\",\n    \"fullName\": \"Test User\",\n    \"role\": \"customer\" \n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/signup",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"signup"
+							]
+						},
+						"description": "Register a new user"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"password123\",\n    \"isAdmin\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in a user and returns user data + JWT token"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"adminpassword\",\n    \"isAdmin\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Logs in an admin user"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logs out a user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Get the currently authenticated user"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication related endpoints"
+		},
+		{
+			"name": "Bookings",
+			"item": [
+				{
+					"name": "Get Bookings",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bookings"
+							]
+						},
+						"description": "Retrieve a list of bookings (filtered by user role)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bookings",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_BOOKING_ID"
+								}
+							]
+						},
+						"description": "Get a booking by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Booking",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"restaurantId\": \"YOUR_RESTAURANT_ID\",\n    \"tableId\": \"YOUR_TABLE_ID\",\n    \"bookingTime\": \"2025-12-25T19:00:00Z\",\n    \"numberOfGuests\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bookings"
+							]
+						},
+						"description": "Create a new booking"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Booking",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"numberOfGuests\": 3,\n    \"status\": \"confirmed\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bookings",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_BOOKING_ID"
+								}
+							]
+						},
+						"description": "Update an existing booking"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Booking",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/bookings/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"bookings",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_BOOKING_ID"
+								}
+							]
+						},
+						"description": "Delete a booking"
+					},
+					"response": []
+				}
+			],
+			"description": "Booking management endpoints",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{authToken}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Restaurants",
+			"item": [
+				{
+					"name": "Get Restaurants",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants?page=1&limit=10&sortBy=name&sortOrder=asc",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "sortBy",
+									"value": "name"
+								},
+								{
+									"key": "sortOrder",
+									"value": "asc"
+								}
+							]
+						},
+						"description": "Retrieve a list of restaurants with pagination and sorting"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								}
+							]
+						},
+						"description": "Get a restaurant by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Restaurant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "My New Restaurant",
+									"type": "text"
+								},
+								{
+									"key": "address",
+									"value": "123 Main St",
+									"type": "text"
+								},
+								{
+									"key": "phone",
+									"value": "555-1234",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "A great place to eat.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "/path/to/your/image.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants"
+							]
+						},
+						"description": "Create a new restaurant (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Restaurant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Updated Restaurant Name",
+									"type": "text"
+								},
+								{
+									"key": "description",
+									"value": "An even better place to eat.",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "/path/to/your/new_image.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								}
+							]
+						},
+						"description": "Update an existing restaurant (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Restaurant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								}
+							]
+						},
+						"description": "Delete a restaurant (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant Tables",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id/tables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id",
+								"tables"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								}
+							]
+						},
+						"description": "Get tables for a specific restaurant"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Table",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"tableNumber\": 10,\n    \"capacity\": 4,\n    \"isAvailable\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id/tables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id",
+								"tables"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								}
+							]
+						},
+						"description": "Create a new table for a restaurant (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Table",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"capacity\": 6,\n    \"isAvailable\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id/tables/:tableId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id",
+								"tables",
+								":tableId"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								},
+								{
+									"key": "tableId",
+									"value": "YOUR_TABLE_ID"
+								}
+							]
+						},
+						"description": "Update a table (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Table",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/:id/tables/:tableId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								":id",
+								"tables",
+								":tableId"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "YOUR_RESTAURANT_ID"
+								},
+								{
+									"key": "tableId",
+									"value": "YOUR_TABLE_ID"
+								}
+							]
+						},
+						"description": "Delete a table (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Presigned Upload URL",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/presigned-upload?fileName=myimage.jpg&fileType=image/jpeg",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								"presigned-upload"
+							],
+							"query": [
+								{
+									"key": "fileName",
+									"value": "myimage.jpg"
+								},
+								{
+									"key": "fileType",
+									"value": "image/jpeg"
+								}
+							]
+						},
+						"description": "Get a presigned URL for uploading a restaurant image (Admin or Staff)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Presigned Access URL",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/restaurants/presigned-access?key=YOUR_S3_OBJECT_KEY",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"restaurants",
+								"presigned-access"
+							],
+							"query": [
+								{
+									"key": "key",
+									"value": "YOUR_S3_OBJECT_KEY"
+								}
+							]
+						},
+						"description": "Get a presigned URL for accessing a restaurant image"
+					},
+					"response": []
+				}
+			],
+			"description": "Restaurant and table management endpoints",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{authToken}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		},
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Basic Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health"
+							]
+						},
+						"description": "Public endpoint that returns a simple status indicating the API is running."
+					},
+					"response": []
+				},
+				{
+					"name": "Detailed Health Check",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health/detailed",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health",
+								"detailed"
+							]
+						},
+						"description": "Provides detailed health information (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Redis Health Check",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health/redis",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health",
+								"redis"
+							]
+						},
+						"description": "Checks the status of the Redis connection (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Cache Metrics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health/cache/metrics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health",
+								"cache",
+								"metrics"
+							]
+						},
+						"description": "Retrieves current cache hit/miss statistics (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Cache Metrics",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/health/cache/reset-metrics",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"health",
+								"cache",
+								"reset-metrics"
+							]
+						},
+						"description": "Resets the hit/miss counters for caches (Admin only)"
+					},
+					"response": []
+				}
+			],
+			"description": "API health check endpoints"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://13.201.5.90:3000",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "YOUR_JWT_TOKEN",
+			"type": "string"
+		}
+	]
+}
