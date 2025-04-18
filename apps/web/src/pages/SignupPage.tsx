@@ -36,9 +36,21 @@ const SignupPage: React.FC = () => {
 
   // Check password strength when it changes
   useEffect(() => {
-    if (password && passwordTouched) {
-      const feedback = getPasswordStrengthFeedback(password);
-      setPasswordStrengthFeedback(feedback);
+    if (passwordTouched) {
+      // If password exists, get feedback based on password, otherwise set all requirements as not met
+      if (password) {
+        const feedback = getPasswordStrengthFeedback(password);
+        setPasswordStrengthFeedback(feedback);
+      } else {
+        // When password is empty, show all requirements as not met
+        setPasswordStrengthFeedback([
+          "Password must be at least 8 characters long",
+          "Password must contain at least one uppercase letter",
+          "Password must contain at least one lowercase letter",
+          "Password must contain at least one number",
+          "Password must contain at least one special character",
+        ]);
+      }
     }
   }, [password, passwordTouched]);
 
@@ -223,8 +235,11 @@ const SignupPage: React.FC = () => {
                     "One number",
                     "One special character",
                   ].map((req, index) => {
-                    const isMet = passwordStrengthFeedback.every(
-                      (feedback) => !feedback.includes(req.toLowerCase())
+                    // Fix the logic to correctly determine if a requirement is met
+                    const reqLower = req.toLowerCase();
+                    // A requirement is met when there's no feedback message containing this requirement text
+                    const isMet = !passwordStrengthFeedback.some((feedback) =>
+                      feedback.toLowerCase().includes(reqLower)
                     );
                     return (
                       <li
