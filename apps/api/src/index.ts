@@ -7,7 +7,9 @@ import http from "http";
 import authRoutes from "./routes/authRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
 import restaurantRoutes from "./routes/restaurantRoutes";
+import healthRoutes from "./routes/healthRoutes";
 import chatService from "./services/chatService";
+import { initRedis } from "./config/redis";
 
 // Load environment variables
 dotenv.config();
@@ -42,12 +44,16 @@ app.get("/", (_, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/restaurants", restaurantRoutes);
+app.use("/api", healthRoutes); // Mount health routes under /api prefix
 
 // Initialize database and start server
 const startServer = async () => {
   try {
     // Initialize database
     await initDatabase();
+
+    // Initialize Redis cache
+    await initRedis();
 
     // Initialize chat service (now async)
     await chatService.initialize(server);
