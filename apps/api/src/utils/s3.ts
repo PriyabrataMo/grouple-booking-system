@@ -57,6 +57,7 @@ export const uploadFileToS3 = async (
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
+      ContentDisposition: "attachment",
     })
     .promise();
 
@@ -79,9 +80,11 @@ const extractKeyFromUrl = (url: string): string | null => {
     // Parse the URL to extract the pathname
     const urlObj = new URL(url);
     // The path starts with /, so remove the first character
-    return urlObj.pathname.startsWith('/') ? urlObj.pathname.substring(1) : urlObj.pathname;
+    return urlObj.pathname.startsWith("/")
+      ? urlObj.pathname.substring(1)
+      : urlObj.pathname;
   } catch (error) {
-    console.error('Error parsing S3 URL:', error);
+    console.error("Error parsing S3 URL:", error);
     return null;
   }
 };
@@ -117,4 +120,70 @@ export const deleteFileFromS3 = async (url: string): Promise<boolean> => {
     console.error(`Error deleting file from S3:`, error);
     return false;
   }
+};
+
+/**
+ * Generates a presigned URL for uploading a file directly to S3
+ * @param filename Original filename to determine extension
+ * @param folder Optional folder path within the bucket
+ * @param contentType MIME type of the file being uploaded
+ * @param expiresIn Time in seconds until the presigned URL expires (default: 60 minutes)
+ * @returns Object with the upload URL and the file's key in S3
+ */
+export const generatePresignedUploadUrl = (
+  filename: string,
+  folder: string = "restaurant-images",
+  contentType: string = "image/jpeg",
+  expiresIn: number = 3600
+): { uploadUrl: string; key: string } => {
+  // Check if S3 is properly configured
+  if (!bucketName) {
+    throw new Error("AWS_S3_BUCKET_NAME environment variable is not set");
+  }
+
+  // Generate a unique filename with original extension
+  const ext = path.extname(filename);
+  const key = `${folder}/${uuidv4()}${ext}`;
+
+  // Generate a presigned URL for uploading
+  const uploadUrl = s3.getSignedUrl("putObject", {
+    Bucket: bucketName,
+    Key: key,
+    ContentType: contentType,
+    Expires: expiresIn,
+  });
+
+  return { uploadUrl, key };
+};
+
+/**
+ * Generates a presigned URL for downloading/accessing a file from S3
+ * @param key The S3 object key or full S3 URL
+ * @param expiresIn Time in seconds until the presigned URL expires (default: 1 hour)
+ * @returns A Promise that resolves to the presigned URL
+ */
+export const generatePresignedGetUrl = async (
+  key: string,
+  expiresIn: number = 3600
+): Promise<string> => {
+  // Check if S3 is properly configured
+  if (!bucketName) {
+    throw new Error("AWS_S3_BUCKET_NAME environment variable is not set");
+  }
+
+  // If a full URL was passed, extract the key
+  const fileKey = key.includes("http") ? extractKeyFromUrl(key) || key : key;
+  
+  if (!fileKey) {
+    throw new Error("Invalid S3 key or URL provided");
+  }
+
+  // Generate a presigned URL for downloading/viewing
+  const presignedUrl = s3.getSignedUrl("getObject", {
+    Bucket: bucketName,
+    Key: fileKey,
+    Expires: expiresIn,
+  });
+
+  return presignedUrl;
 };

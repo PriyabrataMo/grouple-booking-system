@@ -9,6 +9,8 @@ import {
   createTable,
   updateTable,
   deleteTable,
+  getPresignedUploadUrl,
+  getPresignedAccessUrl,
 } from "../controllers/restaurantController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { upload } from "../middleware/uploadMiddleware";
@@ -46,6 +48,16 @@ router.put(
 router.delete(
   "/:id/tables/:tableId",
   deleteTable as unknown as express.RequestHandler
+);
+
+// Presigned URL routes
+router.get(
+  "/presigned-upload",
+  getPresignedUploadUrl as unknown as express.RequestHandler
+);
+router.get(
+  "/presigned-access",
+  getPresignedAccessUrl as unknown as express.RequestHandler
 );
 
 export default router;
