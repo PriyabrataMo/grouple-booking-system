@@ -98,3 +98,16 @@ This will concurrently start both the frontend and backend services.
 - All AWS credentials are securely stored
 - S3 bucket has proper access controls
 - VPC isolates database from public access
+
+## Test Credentials
+
+### Normal User
+- Email: normaluser@gmail.com
+- Password: Test@user10
+
+### Admin Users
+- Email: admin@gmail.com
+- Password: Test@admin10
+
+- Email: admin2@gmail.com
+- Password: Test@admin10
