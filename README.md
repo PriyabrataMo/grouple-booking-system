@@ -4,6 +4,21 @@
 
 [View Project Demo Video (Loom)](https://www.loom.com/share/c06c0416359849db9aa9d4c8b434205f?sid=ae6c4c19-0d09-4f01-a797-e38637bdcf13)
 
+## Test Credentials
+
+### Normal User
+
+- Email: normaluser@gmail.com
+- Password: Test@user10
+
+### Admin Users
+
+- Email: admin@gmail.com
+- Password: Test@admin10
+
+- Email: admin2@gmail.com
+- Password: Test@admin10
+
 ## Project Overview
 
 This full-stack web application implements a complete booking management system using React.js (frontend), Node.js & Express.js (backend), and MySQL (database). The system includes real-time communication features, authentication, and is deployed to AWS cloud services.
@@ -102,18 +117,3 @@ This will concurrently start both the frontend and backend services.
 - All AWS credentials are securely stored
 - S3 bucket has proper access controls
 - VPC isolates database from public access
-
-## Test Credentials
-
-### Normal User
-
-- Email: normaluser@gmail.com
-- Password: Test@user10
-
-### Admin Users
-
-- Email: admin@gmail.com
-- Password: Test@admin10
-
-- Email: admin2@gmail.com
-- Password: Test@admin10
